@@ -1,0 +1,32 @@
+{
+  "entity": {
+    "sensor": {
+      "active_phases": { "default": "mdi:sine-wave" },
+      "session_cost": { "default": "mdi:currency-eur" },
+      "session_start": { "default": "mdi:clock-start" },
+      "session_stop": { "default": "mdi:clock-end" },
+      "activity": { "default": "mdi:ev-station" },
+      "vehicle_status": { "default": "mdi:car-electric" },
+      "requests_today": { "default": "mdi:counter" },
+      "current_left": { "default": "mdi:gauge" }
+    },
+    "number": {
+      "max_current": { "default": "mdi:current-ac" }
+    },
+    "select": {
+      "charge_card": { "default": "mdi:card-account-details" }
+    },
+    "button": {
+      "start_session": { "default": "mdi:play" },
+      "stop_session": { "default": "mdi:stop" }
+    },
+    "switch": {
+      "plug_and_charge": { "default": "mdi:ev-plug-type2" },
+      "linked_charge_cards_only": { "default": "mdi:account-lock" },
+      "block": { "default": "mdi:lock", "state": { "off": "mdi:lock-open" } }
+    },
+    "binary_sensor": {
+      "override_active": { "default": "mdi:speedometer-slow" }
+    }
+  }
+}

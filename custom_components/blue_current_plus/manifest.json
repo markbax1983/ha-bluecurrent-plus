@@ -1,0 +1,13 @@
+{
+  "domain": "blue_current_plus",
+  "name": "Blue Current Plus",
+  "codeowners": ["@markbax1983"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/markbax1983/ha-bluecurrent-plus",
+  "integration_type": "hub",
+  "iot_class": "cloud_push",
+  "issue_tracker": "https://github.com/markbax1983/ha-bluecurrent-plus/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

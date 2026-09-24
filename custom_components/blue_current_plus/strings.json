@@ -1,0 +1,190 @@
+{
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Charging power"
+      },
+      "power_phase_1": {
+        "name": "Power phase 1"
+      },
+      "power_phase_2": {
+        "name": "Power phase 2"
+      },
+      "power_phase_3": {
+        "name": "Power phase 3"
+      },
+      "current_phase_1": {
+        "name": "Current phase 1"
+      },
+      "current_phase_2": {
+        "name": "Current phase 2"
+      },
+      "current_phase_3": {
+        "name": "Current phase 3"
+      },
+      "voltage_phase_1": {
+        "name": "Voltage phase 1"
+      },
+      "voltage_phase_2": {
+        "name": "Voltage phase 2"
+      },
+      "voltage_phase_3": {
+        "name": "Voltage phase 3"
+      },
+      "active_phases": {
+        "name": "Active phases"
+      },
+      "energy_total": {
+        "name": "Total energy"
+      },
+      "session_energy": {
+        "name": "Session energy"
+      },
+      "session_cost": {
+        "name": "Session cost"
+      },
+      "session_start": {
+        "name": "Session start"
+      },
+      "session_stop": {
+        "name": "Session end"
+      },
+      "session_duration": {
+        "name": "Session duration"
+      },
+      "max_usage": {
+        "name": "Maximum current"
+      },
+      "smartcharging_max_usage": {
+        "name": "Smart charging maximum current"
+      },
+      "max_offline": {
+        "name": "Offline maximum current"
+      },
+      "current_left": {
+        "name": "Remaining current"
+      },
+      "offline_since": {
+        "name": "Offline since"
+      },
+      "grid_current_phase_1": {
+        "name": "Grid current phase 1"
+      },
+      "grid_current_phase_2": {
+        "name": "Grid current phase 2"
+      },
+      "grid_current_phase_3": {
+        "name": "Grid current phase 3"
+      },
+      "grid_max_current": {
+        "name": "Grid max current"
+      },
+      "requests_today": {
+        "name": "Requests today"
+      },
+      "activity": {
+        "name": "Activity",
+        "state": {
+          "available": "Available",
+          "charging": "Charging",
+          "delayed": "Delayed",
+          "error": "Error",
+          "offline": "Offline",
+          "unavailable": "Blocked"
+        }
+      },
+      "vehicle_status": {
+        "name": "Vehicle status",
+        "state": {
+          "standby": "Standby",
+          "vehicle_detected": "Vehicle detected",
+          "ready": "Ready",
+          "no_power": "No power",
+          "vehicle_error": "Vehicle error"
+        }
+      }
+    },
+    "number": {
+      "max_current": {
+        "name": "Max charging current"
+      }
+    },
+    "select": {
+      "charge_card": {
+        "name": "Charge card"
+      }
+    },
+    "button": {
+      "start_session": {
+        "name": "Start session"
+      },
+      "stop_session": {
+        "name": "Stop session"
+      },
+      "reset": {
+        "name": "Reset"
+      },
+      "reboot": {
+        "name": "Reboot"
+      }
+    },
+    "switch": {
+      "plug_and_charge": {
+        "name": "Plug & charge"
+      },
+      "linked_charge_cards_only": {
+        "name": "Linked charge cards only"
+      },
+      "block": {
+        "name": "Block charge point"
+      }
+    },
+    "binary_sensor": {
+      "charging": {
+        "name": "Charging"
+      },
+      "vehicle_connected": {
+        "name": "Vehicle connected"
+      },
+      "override_active": {
+        "name": "Current limit active"
+      },
+      "cloud_connection": {
+        "name": "Cloud connection"
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Blue Current Plus",
+        "description": "Enter the API token from my.bluecurrent.nl (Settings → Home Assistant). Disable the original Blue Current integration first: Blue Current allows only one connection per account.",
+        "data": {
+          "api_token": "API token"
+        }
+      }
+    },
+    "error": {
+      "invalid_token": "Invalid API token",
+      "limit_reached": "Daily request limit reached, try again after midnight",
+      "already_connected": "Another connection is active for this account. Disable the original Blue Current integration.",
+      "cannot_connect": "Cannot connect to Blue Current",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Account is already configured",
+      "reauth_successful": "Re-authentication successful",
+      "wrong_account": "This token belongs to a different account"
+    }
+  },
+  "issues": {
+    "request_limit": {
+      "title": "Blue Current request limit reached",
+      "description": "The daily request limit of the Blue Current API was reached. Entities are unavailable until the limit resets at midnight. Check automations that change the max current very often."
+    },
+    "already_connected": {
+      "title": "Blue Current: another connection is active",
+      "description": "Blue Current refuses the connection because another client is connected with this account, probably the original Blue Current integration. Disable it."
+    }
+  }
+}

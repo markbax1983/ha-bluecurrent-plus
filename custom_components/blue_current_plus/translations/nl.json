@@ -1,0 +1,190 @@
+{
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Laadvermogen"
+      },
+      "power_phase_1": {
+        "name": "Vermogen fase 1"
+      },
+      "power_phase_2": {
+        "name": "Vermogen fase 2"
+      },
+      "power_phase_3": {
+        "name": "Vermogen fase 3"
+      },
+      "current_phase_1": {
+        "name": "Stroom fase 1"
+      },
+      "current_phase_2": {
+        "name": "Stroom fase 2"
+      },
+      "current_phase_3": {
+        "name": "Stroom fase 3"
+      },
+      "voltage_phase_1": {
+        "name": "Spanning fase 1"
+      },
+      "voltage_phase_2": {
+        "name": "Spanning fase 2"
+      },
+      "voltage_phase_3": {
+        "name": "Spanning fase 3"
+      },
+      "active_phases": {
+        "name": "Actieve fases"
+      },
+      "energy_total": {
+        "name": "Totaal geladen"
+      },
+      "session_energy": {
+        "name": "Sessie energie"
+      },
+      "session_cost": {
+        "name": "Sessie kosten"
+      },
+      "session_start": {
+        "name": "Sessie start"
+      },
+      "session_stop": {
+        "name": "Sessie einde"
+      },
+      "session_duration": {
+        "name": "Sessie duur"
+      },
+      "max_usage": {
+        "name": "Maximale stroom"
+      },
+      "smartcharging_max_usage": {
+        "name": "Smart charging maximale stroom"
+      },
+      "max_offline": {
+        "name": "Offline maximale stroom"
+      },
+      "current_left": {
+        "name": "Resterende stroom"
+      },
+      "offline_since": {
+        "name": "Offline sinds"
+      },
+      "grid_current_phase_1": {
+        "name": "Netstroom fase 1"
+      },
+      "grid_current_phase_2": {
+        "name": "Netstroom fase 2"
+      },
+      "grid_current_phase_3": {
+        "name": "Netstroom fase 3"
+      },
+      "grid_max_current": {
+        "name": "Netstroom max"
+      },
+      "requests_today": {
+        "name": "Requests vandaag"
+      },
+      "activity": {
+        "name": "Activiteit",
+        "state": {
+          "available": "Beschikbaar",
+          "charging": "Laden",
+          "delayed": "Uitgesteld",
+          "error": "Fout",
+          "offline": "Offline",
+          "unavailable": "Geblokkeerd"
+        }
+      },
+      "vehicle_status": {
+        "name": "Voertuigstatus",
+        "state": {
+          "standby": "Standby",
+          "vehicle_detected": "Auto gedetecteerd",
+          "ready": "Gereed",
+          "no_power": "Geen stroom",
+          "vehicle_error": "Voertuigfout"
+        }
+      }
+    },
+    "number": {
+      "max_current": {
+        "name": "Max laadstroom"
+      }
+    },
+    "select": {
+      "charge_card": {
+        "name": "Laadpas"
+      }
+    },
+    "button": {
+      "start_session": {
+        "name": "Start laden"
+      },
+      "stop_session": {
+        "name": "Stop laden"
+      },
+      "reset": {
+        "name": "Reset"
+      },
+      "reboot": {
+        "name": "Herstart"
+      }
+    },
+    "switch": {
+      "plug_and_charge": {
+        "name": "Plug & charge"
+      },
+      "linked_charge_cards_only": {
+        "name": "Alleen gekoppelde laadpassen"
+      },
+      "block": {
+        "name": "Laadpaal blokkeren"
+      }
+    },
+    "binary_sensor": {
+      "charging": {
+        "name": "Laden"
+      },
+      "vehicle_connected": {
+        "name": "Auto aangesloten"
+      },
+      "override_active": {
+        "name": "Stroomlimiet actief"
+      },
+      "cloud_connection": {
+        "name": "Cloudverbinding"
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Blue Current Plus",
+        "description": "Vul het API-token in uit my.bluecurrent.nl (Instellingen → Home Assistant). Schakel eerst de originele Blue Current-integratie uit: Blue Current staat maar één verbinding per account toe.",
+        "data": {
+          "api_token": "API token"
+        }
+      }
+    },
+    "error": {
+      "invalid_token": "Ongeldig API-token",
+      "limit_reached": "Dagelijkse request-limiet bereikt, probeer het na middernacht opnieuw",
+      "already_connected": "Er is al een verbinding actief voor dit account. Schakel de originele Blue Current-integratie uit.",
+      "cannot_connect": "Kan geen verbinding maken met Blue Current",
+      "unknown": "Onverwachte fout"
+    },
+    "abort": {
+      "already_configured": "Account is al geconfigureerd",
+      "reauth_successful": "Opnieuw aanmelden gelukt",
+      "wrong_account": "Dit token hoort bij een ander account"
+    }
+  },
+  "issues": {
+    "request_limit": {
+      "title": "Blue Current request-limiet bereikt",
+      "description": "De dagelijkse request-limiet van de Blue Current API is bereikt. Entiteiten zijn onbeschikbaar tot de reset om middernacht. Controleer automations die de max laadstroom heel vaak aanpassen."
+    },
+    "already_connected": {
+      "title": "Blue Current: andere verbinding actief",
+      "description": "Blue Current weigert de verbinding omdat er al een andere client met dit account verbonden is, waarschijnlijk de originele Blue Current-integratie. Schakel die uit."
+    }
+  }
+}
