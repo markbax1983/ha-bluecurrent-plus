@@ -200,8 +200,8 @@ class ChargePoint:
 
     @property
     def tariff_price(self) -> float | None:
-        """Price per kWh incl. VAT as configured on my.bluecurrent.nl."""
-        return to_float(self.tariff.get("price_in_vat"))
+        """Price per kWh as set on my.bluecurrent.nl (ex VAT, what you get reimbursed)."""
+        return to_float(self.tariff.get("price_ex_vat"))
 
     @property
     def session_tariff_value(self) -> float | None:
@@ -210,7 +210,7 @@ class ChargePoint:
         kwh = to_float(self.status.get("actual_kwh"))
         if price is None or kwh is None:
             return None
-        start_fee = to_float(self.tariff.get("start_price_in_vat")) or 0.0
+        start_fee = to_float(self.tariff.get("start_price_ex_vat")) or 0.0
         return round(kwh * price + start_fee, 2)
 
     @property

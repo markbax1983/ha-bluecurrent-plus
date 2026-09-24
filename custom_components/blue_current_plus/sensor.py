@@ -265,5 +265,17 @@ class BlueCurrentSensor(BlueCurrentEntity, SensorEntity):
         return super().available
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.entity_description.key not in ("tariff", "session_tariff_value"):
+            return None
+        t = self.cp.tariff
+        return {
+            "tariff_id": t.get("tariff_id"),
+            "price_ex_vat": t.get("price_ex_vat"),
+            "price_in_vat": t.get("price_in_vat"),
+            "start_price_ex_vat": t.get("start_price_ex_vat"),
+        }
+
+    @property
     def native_value(self) -> Any:
         return self.entity_description.value_fn(self.cp, self.coordinator)

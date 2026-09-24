@@ -14,7 +14,7 @@ Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een v
 | Onbekende berichten van de server worden weggegooid | Die komen in debug-log en diagnostics terecht, zodat we kunnen ontdekken wat de API nog meer kan |
 | `resterende stroom` = limiet − *gemiddelde* fase | Limiet − *zwaarst belaste* fase |
 | Sessie start/einde worden overschreven door de `null`-waarden in live pushes | De laatst bekende tijden blijven staan; bij loskoppelen wordt de echte eindtijd één keer opgevraagd |
-| Sessiekosten blijven €0 bij laden met je eigen pas | **Sessie waarde (tarief)** = kWh × je tarief uit my.bluecurrent.nl |
+| Sessiekosten blijven €0 bij laden met je eigen pas | **Sessie waarde (tarief)** = kWh × je ingestelde tarief uit my.bluecurrent.nl (excl. btw; incl. btw als attribuut) |
 
 ## Entiteiten (per laadpaal)
 

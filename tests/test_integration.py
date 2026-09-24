@@ -241,8 +241,9 @@ async def test_real_world_null_timestamps(hass: HomeAssistant, setup_entry, back
     await backend.push({"object": "CH_STATUS", "data": {**s, "actual_kwh": 6.0, "start_datetime": None}})
     await hass.async_block_till_done()
     assert float(state(hass, "sensor", "energy_total").state) == 6.0
-    assert float(state(hass, "sensor", "session_tariff_value").state) == 2.18  # 6.0 kWh x 0.363
-    assert float(state(hass, "sensor", "tariff").state) == 0.363
+    assert float(state(hass, "sensor", "session_tariff_value").state) == 1.8  # 6.0 kWh x 0.30 ex VAT
+    assert float(state(hass, "sensor", "tariff").state) == 0.3
+    assert state(hass, "sensor", "tariff").attributes["price_in_vat"] == 0.363
 
     # unplug: push without stop -> integration fetches status once, which has the stop
     sent = len(backend.sent)

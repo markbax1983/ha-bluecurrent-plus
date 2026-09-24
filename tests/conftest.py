@@ -83,7 +83,9 @@ class FakeBackend:
                         "smart_charging": False,
                         "tariff": {
                             "tariff_id": "NLBCUT00",
+                            "price_ex_vat": 0.3,
                             "price_in_vat": 0.363,
+                            "start_price_ex_vat": 0,
                             "start_price_in_vat": 0,
                             "currency": "EUR",
                         },
