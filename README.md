@@ -13,23 +13,25 @@ Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een v
 | Bij de request-limiet de hele dag `unavailable`, zonder uitleg | Request-teller, oplopende backoff, en een repair-melding met oorzaak |
 | Onbekende berichten van de server worden weggegooid | Die komen in debug-log en diagnostics terecht, zodat we kunnen ontdekken wat de API nog meer kan |
 | `resterende stroom` = limiet − *gemiddelde* fase | Limiet − *zwaarst belaste* fase |
+| Sessie start/einde worden overschreven door de `null`-waarden in live pushes | De laatst bekende tijden blijven staan; bij loskoppelen wordt de echte eindtijd één keer opgevraagd |
+| Sessiekosten blijven €0 bij laden met je eigen pas | **Sessie waarde (tarief)** = kWh × je tarief uit my.bluecurrent.nl |
 
 ## Entiteiten (per laadpaal)
 
-- **Sensoren:** laadvermogen, vermogen/stroom/spanning per fase, actieve fases, totaal geladen, sessie energie/kosten/start/einde/duur, activiteit, voertuigstatus, maximale stroom, resterende stroom, netstroom per fase + max, requests vandaag, offline sinds
+- **Sensoren:** laadvermogen, vermogen/stroom/spanning per fase, actieve fases, totaal geladen, sessie energie/kosten/waarde (tarief)/start/einde/duur, tarief, activiteit, voertuigstatus, maximale stroom, resterende stroom, netstroom per fase + max, requests vandaag, offline sinds
 - **Binary sensors:** laden, auto aangesloten, stroomlimiet actief, cloudverbinding
 - **Bediening:** max laadstroom (number), laadpas (select), start/stop laden, reset, herstart, plug & charge, alleen gekoppelde laadpassen, laadpaal blokkeren
 
 ## Events
 
-- `blue_current_plus_session_finished`: bij elke afgeronde sessie, met `evse_id`, `start`, `stop`, `energy_kwh`, `cost` en `duration_min`. Handig voor factuurcontrole of ERE-registratie.
+- `blue_current_plus_session_finished`: bij elke afgeronde sessie, met `evse_id`, `start`, `stop`, `energy_kwh`, `cost`, `tariff_value` en `duration_min`. Alleen voor sessies die tijdens het draaien zijn gezien, dus niet voor een oude sessie bij het opstarten. Handig voor factuurcontrole of ERE-registratie.
 - `blue_current_plus_command_result`: het resultaat van start/stop/reset/herstart.
 
 ## Installatie
 
 1. HACS → Integraties → ⋮ → *Aangepaste repositories* → `https://github.com/markbax1983/ha-bluecurrent-plus` (type: Integratie)
 2. Installeer **Blue Current Plus** en herstart Home Assistant.
-3. **Schakel de originele Blue Current-integratie uit.** Blue Current staat maar één websocket-verbinding per account toe.
+3. Tip: schakel de originele Blue Current-integratie uit zodra alles werkt. Ze kunnen naast elkaar draaien, maar ze verbruiken dezelfde dagelijkse request-limiet.
 4. Instellingen → Apparaten & diensten → Integratie toevoegen → *Blue Current Plus*, en vul je API-token in.
 
 ## Hoe werkt de max laadstroom?

@@ -81,6 +81,12 @@ class FakeBackend:
                         "plug_and_charge": {"value": True, "permission": "write"},
                         "public_charging": {"value": True, "permission": "write"},
                         "smart_charging": False,
+                        "tariff": {
+                            "tariff_id": "NLBCUT00",
+                            "price_in_vat": 0.363,
+                            "start_price_in_vat": 0,
+                            "currency": "EUR",
+                        },
                     },
                 }
             ]

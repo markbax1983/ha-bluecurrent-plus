@@ -102,6 +102,12 @@
           "no_power": "No power",
           "vehicle_error": "Vehicle error"
         }
+      },
+      "session_tariff_value": {
+        "name": "Session value (tariff)"
+      },
+      "tariff": {
+        "name": "Tariff"
       }
     },
     "number": {
@@ -158,7 +164,7 @@
     "step": {
       "user": {
         "title": "Blue Current Plus",
-        "description": "Enter the API token from my.bluecurrent.nl (Settings → Home Assistant). Disable the original Blue Current integration first: Blue Current allows only one connection per account.",
+        "description": "Enter the API token from my.bluecurrent.nl (Settings → Home Assistant). Tip: disable the original Blue Current integration afterwards, it uses the same daily request limit.",
         "data": {
           "api_token": "API token"
         }

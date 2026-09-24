@@ -125,6 +125,20 @@ SENSORS: tuple[BCSensorDescription, ...] = (
         value_fn=_status("total_cost"),
     ),
     BCSensorDescription(
+        key="session_tariff_value",
+        device_class=SensorDeviceClass.MONETARY,
+        native_unit_of_measurement="EUR",
+        suggested_display_precision=2,
+        value_fn=lambda cp, _c: cp.session_tariff_value,
+    ),
+    BCSensorDescription(
+        key="tariff",
+        native_unit_of_measurement="EUR/kWh",
+        suggested_display_precision=3,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda cp, _c: cp.tariff_price,
+    ),
+    BCSensorDescription(
         key="session_start",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda cp, _c: cp.session_start,

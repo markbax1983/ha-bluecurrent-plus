@@ -223,3 +223,64 @@ async def test_energy_survives_restart(hass: HomeAssistant, setup_entry, backend
     # backend still reports the 14:00 session (5 kWh) - a *different* session key,
     # so base (11) + 5 -> must not go backwards
     assert float(state(hass, "sensor", "energy_total").state) == 11.0
+
+
+async def test_real_world_null_timestamps(hass: HomeAssistant, setup_entry, backend) -> None:
+    """Live pushes carry start/stop as null (seen on a real U:MOVE)."""
+    events = async_capture_events(hass, f"{DOMAIN}_session_finished")
+    s = dict(backend.status)
+    await backend.push(
+        {
+            "object": "CH_STATUS",
+            "data": {**s, "actual_kwh": 2.28, "start_datetime": None, "stop_datetime": None},
+        }
+    )
+    await hass.async_block_till_done()
+    assert state(hass, "sensor", "session_start").state.startswith("2026-09-24T12:00:00")
+    assert float(state(hass, "sensor", "energy_total").state) == 5.0  # max(5, 2.28) same session
+    await backend.push({"object": "CH_STATUS", "data": {**s, "actual_kwh": 6.0, "start_datetime": None}})
+    await hass.async_block_till_done()
+    assert float(state(hass, "sensor", "energy_total").state) == 6.0
+    assert float(state(hass, "sensor", "session_tariff_value").state) == 2.18  # 6.0 kWh x 0.363
+    assert float(state(hass, "sensor", "tariff").state) == 0.363
+
+    # unplug: push without stop -> integration fetches status once, which has the stop
+    sent = len(backend.sent)
+    backend.status = {
+        **s,
+        "actual_kwh": 6.0,
+        "vehicle_status": "A",
+        "activity": "available",
+        "stop_datetime": "20260924 17:00:00",
+    }
+    await backend.push(
+        {
+            "object": "CH_STATUS",
+            "data": {
+                **s,
+                "actual_kwh": 6.0,
+                "vehicle_status": "A",
+                "activity": "available",
+                "start_datetime": None,
+                "stop_datetime": None,
+            },
+        }
+    )
+    await hass.async_block_till_done()
+    assert [c["command"] for c in backend.sent[sent:]] == ["GET_CH_STATUS"]
+    assert len(events) == 1 and events[0].data["energy_kwh"] == 6.0
+    assert state(hass, "sensor", "session_stop").state.startswith("2026-09-24T15:00:00")
+
+
+async def test_no_event_for_old_session_at_startup(hass: HomeAssistant, fake_session, backend) -> None:
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    backend.status = {**backend.status, "stop_datetime": "20260924 15:00:00", "activity": "available"}
+    events = async_capture_events(hass, f"{DOMAIN}_session_finished")
+    entry = MockConfigEntry(domain=DOMAIN, data={"api_token": "good"}, unique_id="cust1")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert events == []
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

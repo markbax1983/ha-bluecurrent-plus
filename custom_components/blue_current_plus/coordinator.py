@@ -121,6 +121,7 @@ class ChargePoint:
     session_key: str | None = None
     session_kwh: float = 0.0
     finished_key: str | None = None
+    session_seen_open: bool = False
     # user selections (persisted)
     card_uid: str = NO_CARD_UID
     # optimistic override value while a request is in flight
@@ -193,6 +194,26 @@ class ChargePoint:
         return round(max((end - start).total_seconds(), 0) / 60, 1)
 
     @property
+    def tariff(self) -> dict[str, Any]:
+        tariff = self.settings.get("tariff") or self.info.get("tariff")
+        return tariff if isinstance(tariff, dict) else {}
+
+    @property
+    def tariff_price(self) -> float | None:
+        """Price per kWh incl. VAT as configured on my.bluecurrent.nl."""
+        return to_float(self.tariff.get("price_in_vat"))
+
+    @property
+    def session_tariff_value(self) -> float | None:
+        """kWh x tariff (+ start fee): what this session is worth at your tariff."""
+        price = self.tariff_price
+        kwh = to_float(self.status.get("actual_kwh"))
+        if price is None or kwh is None:
+            return None
+        start_fee = to_float(self.tariff.get("start_price_in_vat")) or 0.0
+        return round(kwh * price + start_fee, 2)
+
+    @property
     def energy_total_kwh(self) -> float:
         return round(self.energy_base_kwh + self.session_kwh, 3)
 
@@ -210,6 +231,7 @@ class ChargePoint:
             "session_key": self.session_key,
             "session_kwh": self.session_kwh,
             "finished_key": self.finished_key,
+            "session_seen_open": self.session_seen_open,
             "card_uid": self.card_uid,
         }
 
@@ -350,7 +372,13 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         if obj == "CHARGE_POINTS":
             await self._handle_charge_points(message)
         elif obj == "CH_STATUS":
+            evse_id = (message.get("data") or {}).get("evse_id")
+            cp = self.data.charge_points.get(evse_id)
+            before = cp.vehicle_status if cp else None
             self._handle_status(message)
+            # Unplugged: pushes don't carry the stop time, fetch it once.
+            if cp and before not in (None, "standby") and cp.vehicle_status == "standby":
+                await self.api.send("GET_CH_STATUS", evse_id=evse_id)
         elif obj == "CH_SETTINGS":
             self._handle_settings(message)
         elif "GRID" in obj:
@@ -403,7 +431,9 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
                 cp.session_key = stored.get("session_key")
                 cp.session_kwh = float(stored.get("session_kwh", 0.0))
                 cp.finished_key = stored.get("finished_key")
-                cp.card_uid = stored.get("card_uid", NO_CARD_UID)
+                cp.session_seen_open = bool(stored.get("session_seen_open", False))
+                preferred = info.get("preferred_card") or info.get("default_card") or {}
+                cp.card_uid = stored.get("card_uid") or preferred.get("uid") or NO_CARD_UID
                 self.data.charge_points[evse_id] = cp
             cp.info = info
             cp.name = info.get("name") or evse_id
@@ -427,9 +457,24 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         if cp is None:
             return
         status = dict(data)
-        for key in ("start_datetime", "stop_datetime", "offline_since"):
+        if "offline_since" in status:
+            status["offline_since"] = parse_datetime(status["offline_since"])
+        # Live pushes send start/stop as null/"" - only the initial GET_CH_STATUS
+        # carries them. Keep the last known value instead of wiping it.
+        for key in ("start_datetime", "stop_datetime"):
             if key in status:
-                status[key] = parse_datetime(status[key])
+                parsed = parse_datetime(status[key])
+                if parsed is None:
+                    status.pop(key)
+                else:
+                    status[key] = parsed
+        new_start = status.get("start_datetime")
+        if (
+            new_start is not None
+            and new_start != cp.status.get("start_datetime")
+            and "stop_datetime" not in status
+        ):
+            status["stop_datetime"] = None  # a new session has no end yet
         if "vehicle_status" in status:
             status["vehicle_status"] = VEHICLE_STATUS.get(
                 str(status["vehicle_status"]), status["vehicle_status"]
@@ -454,24 +499,33 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
                 cp.energy_base_kwh = round(cp.energy_base_kwh + cp.session_kwh, 3)
             cp.session_key = key
             cp.session_kwh = kwh
+            cp.session_seen_open = False
         elif kwh > cp.session_kwh:
             cp.session_kwh = kwh
-        # A stop time on the current session means it is finished.
         stop = cp.session_stop
-        if stop is not None and stop >= start and cp.finished_key != key:
+        if stop is None or stop < start:
+            cp.session_seen_open = True
+        # A stop time on the current session means it is finished. Only report
+        # sessions we saw running - not an old one found at startup.
+        elif cp.finished_key != key:
             cp.finished_key = key
-            self.hass.bus.async_fire(
-                EVENT_SESSION_FINISHED,
-                {
-                    "evse_id": cp.evse_id,
-                    "start": start.isoformat(),
-                    "stop": stop.isoformat(),
-                    "energy_kwh": cp.session_kwh,
-                    "cost": to_float(cp.status.get("total_cost")),
-                    "duration_min": cp.session_duration_min,
-                },
-            )
+            if cp.session_seen_open:
+                self._fire_finished(cp, start, stop)
         self._schedule_save()
+
+    def _fire_finished(self, cp: ChargePoint, start: datetime, stop: datetime) -> None:
+        self.hass.bus.async_fire(
+            EVENT_SESSION_FINISHED,
+            {
+                "evse_id": cp.evse_id,
+                "start": start.isoformat(),
+                "stop": stop.isoformat(),
+                "energy_kwh": cp.session_kwh,
+                "cost": to_float(cp.status.get("total_cost")),
+                "tariff_value": cp.session_tariff_value,
+                "duration_min": cp.session_duration_min,
+            },
+        )
 
     def _handle_settings(self, message: dict[str, Any]) -> None:
         data = message.get("data")

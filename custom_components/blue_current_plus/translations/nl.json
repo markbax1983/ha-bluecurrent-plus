@@ -102,6 +102,12 @@
           "no_power": "Geen stroom",
           "vehicle_error": "Voertuigfout"
         }
+      },
+      "session_tariff_value": {
+        "name": "Sessie waarde (tarief)"
+      },
+      "tariff": {
+        "name": "Tarief"
       }
     },
     "number": {
@@ -158,7 +164,7 @@
     "step": {
       "user": {
         "title": "Blue Current Plus",
-        "description": "Vul het API-token in uit my.bluecurrent.nl (Instellingen → Home Assistant). Schakel eerst de originele Blue Current-integratie uit: Blue Current staat maar één verbinding per account toe.",
+        "description": "Vul het API-token in uit my.bluecurrent.nl (Instellingen → Home Assistant). Tip: schakel daarna de originele Blue Current-integratie uit, die verbruikt dezelfde dagelijkse request-limiet.",
         "data": {
           "api_token": "API token"
         }
