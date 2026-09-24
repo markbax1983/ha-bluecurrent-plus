@@ -285,3 +285,29 @@ async def test_no_event_for_old_session_at_startup(hass: HomeAssistant, fake_ses
     assert events == []
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_session_values_survive_unplug(hass: HomeAssistant, setup_entry, backend) -> None:
+    """Real backend resets actual_kwh to 0 on unplug (seen 24-09 16:50)."""
+    s = dict(backend.status)
+    await backend.push({"object": "CH_STATUS", "data": {**s, "actual_kwh": 5.26, "start_datetime": None}})
+    await hass.async_block_till_done()
+    backend.status = {
+        **s,
+        "actual_kwh": 0.0,
+        "vehicle_status": "A",
+        "activity": "available",
+        "stop_datetime": "20260924 16:50:37",
+        "total_cost": 1.57,
+    }
+    await backend.push(
+        {
+            "object": "CH_STATUS",
+            "data": {**backend.status, "start_datetime": None, "stop_datetime": None, "vehicle_status": "A"},
+        }
+    )
+    await hass.async_block_till_done()
+    assert float(state(hass, "sensor", "session_energy").state) == 5.26
+    assert float(state(hass, "sensor", "session_tariff_value").state) == 1.58  # 5.26 x 0.30
+    assert float(state(hass, "sensor", "session_cost").state) == 1.57  # Blue Current's own figure
+    assert float(state(hass, "sensor", "energy_total").state) == 5.26

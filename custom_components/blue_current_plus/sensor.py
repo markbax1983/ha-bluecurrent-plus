@@ -115,7 +115,7 @@ SENSORS: tuple[BCSensorDescription, ...] = (
         device_class=SensorDeviceClass.ENERGY,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         suggested_display_precision=2,
-        value_fn=_status("actual_kwh"),
+        value_fn=lambda cp, _c: cp.session_energy_kwh,
     ),
     BCSensorDescription(
         key="session_cost",

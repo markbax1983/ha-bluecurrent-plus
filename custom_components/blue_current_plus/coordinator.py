@@ -204,10 +204,20 @@ class ChargePoint:
         return to_float(self.tariff.get("price_ex_vat"))
 
     @property
+    def session_energy_kwh(self) -> float | None:
+        """kWh of the current/last session. The backend resets actual_kwh to 0 on
+        unplug; keep showing what we counted for that same session."""
+        kwh = to_float(self.status.get("actual_kwh"))
+        start = self.session_start
+        if start is not None and self.session_key == start.isoformat():
+            return max(kwh or 0.0, self.session_kwh)
+        return kwh
+
+    @property
     def session_tariff_value(self) -> float | None:
         """kWh x tariff (+ start fee): what this session is worth at your tariff."""
         price = self.tariff_price
-        kwh = to_float(self.status.get("actual_kwh"))
+        kwh = self.session_energy_kwh
         if price is None or kwh is None:
             return None
         start_fee = to_float(self.tariff.get("start_price_ex_vat")) or 0.0

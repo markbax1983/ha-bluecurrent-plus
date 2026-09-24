@@ -49,7 +49,8 @@ class MaxCurrentNumber(BlueCurrentControlEntity, NumberEntity):
         override = self.coordinator.override_current(self.evse_id)
         if override is not None:
             return override
-        return self.native_max_value
+        # No status yet: unknown rather than a made-up 32 A.
+        return to_float(self.cp.status.get("max_usage"))
 
     @property
     def extra_state_attributes(self) -> dict[str, object]:
