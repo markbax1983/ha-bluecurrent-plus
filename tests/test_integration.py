@@ -38,7 +38,10 @@ async def test_sensors(hass: HomeAssistant, setup_entry) -> None:
     assert float(state(hass, "sensor", "session_energy").state) == 5.0
     # headroom on busiest phase: 32 - 16
     assert float(state(hass, "sensor", "current_left").state) == 16.0
-    assert float(state(hass, "sensor", "grid_max_current").state) == 12.0
+    # reported grid current: diagnostic, disabled by default
+    grid = er.async_get(hass).async_get(eid(hass, "sensor", "grid_max_current"))
+    assert grid.disabled_by is er.RegistryEntryDisabler.INTEGRATION
+    assert state(hass, "sensor", "tariff").attributes["price_ex_vat"] == 0.3
     assert state(hass, "binary_sensor", "charging").state == "on"
     assert state(hass, "binary_sensor", "vehicle_connected").state == "on"
     assert state(hass, "binary_sensor", "cloud_connection").state == "on"
@@ -241,7 +244,8 @@ async def test_real_world_null_timestamps(hass: HomeAssistant, setup_entry, back
     await backend.push({"object": "CH_STATUS", "data": {**s, "actual_kwh": 6.0, "start_datetime": None}})
     await hass.async_block_till_done()
     assert float(state(hass, "sensor", "energy_total").state) == 6.0
-    assert float(state(hass, "sensor", "session_tariff_value").state) == 1.8  # 6.0 kWh x 0.30 ex VAT
+    assert float(state(hass, "sensor", "session_reimbursement").state) == 1.8  # live: 6.0 kWh x 0.30
+    assert state(hass, "sensor", "session_reimbursement").attributes["final"] is False
     assert float(state(hass, "sensor", "tariff").state) == 0.3
     assert state(hass, "sensor", "tariff").attributes["price_in_vat"] == 0.363
 
@@ -270,7 +274,11 @@ async def test_real_world_null_timestamps(hass: HomeAssistant, setup_entry, back
     await hass.async_block_till_done()
     assert [c["command"] for c in backend.sent[sent:]] == ["GET_CH_STATUS"]
     assert len(events) == 1 and events[0].data["energy_kwh"] == 6.0
-    assert state(hass, "sensor", "session_stop").state.startswith("2026-09-24T15:00:00")
+    assert events[0].data["stop"].startswith("2026-09-24T17:00:00")
+    # ended: Blue Current's own amount (1.5 in the fake) replaces the estimate
+    assert float(state(hass, "sensor", "session_reimbursement").state) == 1.5
+    assert state(hass, "sensor", "session_reimbursement").attributes["final"] is True
+    assert float(state(hass, "sensor", "total_reimbursement").state) == 1.5
 
 
 async def test_no_event_for_old_session_at_startup(hass: HomeAssistant, fake_session, backend) -> None:
@@ -308,6 +316,22 @@ async def test_session_values_survive_unplug(hass: HomeAssistant, setup_entry, b
     )
     await hass.async_block_till_done()
     assert float(state(hass, "sensor", "session_energy").state) == 5.26
-    assert float(state(hass, "sensor", "session_tariff_value").state) == 1.58  # 5.26 x 0.30
-    assert float(state(hass, "sensor", "session_cost").state) == 1.57  # Blue Current's own figure
+    assert float(state(hass, "sensor", "session_reimbursement").state) == 1.57  # Blue Current's figure
+    assert float(state(hass, "sensor", "total_reimbursement").state) == 1.57
     assert float(state(hass, "sensor", "energy_total").state) == 5.26
+
+
+async def test_removed_entities_are_cleaned_up(hass: HomeAssistant, fake_session, backend) -> None:
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(domain=DOMAIN, data={"api_token": "good"}, unique_id="cust1")
+    entry.add_to_hass(hass)
+    reg = er.async_get(hass)
+    for key in ("session_stop", "session_cost", "session_tariff_value"):
+        reg.async_get_or_create("sensor", DOMAIN, f"{EVSE}_{key}", config_entry=entry)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    for key in ("session_stop", "session_cost", "session_tariff_value"):
+        assert reg.async_get_entity_id("sensor", DOMAIN, f"{EVSE}_{key}") is None
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

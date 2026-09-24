@@ -5,31 +5,31 @@
         "name": "Laadvermogen"
       },
       "power_phase_1": {
-        "name": "Vermogen fase 1"
+        "name": "Laadvermogen fase 1"
       },
       "power_phase_2": {
-        "name": "Vermogen fase 2"
+        "name": "Laadvermogen fase 2"
       },
       "power_phase_3": {
-        "name": "Vermogen fase 3"
+        "name": "Laadvermogen fase 3"
       },
       "current_phase_1": {
-        "name": "Stroom fase 1"
+        "name": "Laadstroom fase 1"
       },
       "current_phase_2": {
-        "name": "Stroom fase 2"
+        "name": "Laadstroom fase 2"
       },
       "current_phase_3": {
-        "name": "Stroom fase 3"
+        "name": "Laadstroom fase 3"
       },
       "voltage_phase_1": {
-        "name": "Spanning fase 1"
+        "name": "Netspanning fase 1"
       },
       "voltage_phase_2": {
-        "name": "Spanning fase 2"
+        "name": "Netspanning fase 2"
       },
       "voltage_phase_3": {
-        "name": "Spanning fase 3"
+        "name": "Netspanning fase 3"
       },
       "active_phases": {
         "name": "Actieve fases"
@@ -40,20 +40,14 @@
       "session_energy": {
         "name": "Sessie energie"
       },
-      "session_cost": {
-        "name": "Sessie kosten"
-      },
       "session_start": {
         "name": "Sessie start"
-      },
-      "session_stop": {
-        "name": "Sessie einde"
       },
       "session_duration": {
         "name": "Sessie duur"
       },
       "max_usage": {
-        "name": "Maximale stroom"
+        "name": "Maximale laadstroom"
       },
       "smartcharging_max_usage": {
         "name": "Smart charging maximale stroom"
@@ -68,22 +62,22 @@
         "name": "Offline sinds"
       },
       "grid_current_phase_1": {
-        "name": "Netstroom fase 1"
+        "name": "Gemelde netstroom fase 1"
       },
       "grid_current_phase_2": {
-        "name": "Netstroom fase 2"
+        "name": "Gemelde netstroom fase 2"
       },
       "grid_current_phase_3": {
-        "name": "Netstroom fase 3"
+        "name": "Gemelde netstroom fase 3"
       },
       "grid_max_current": {
-        "name": "Netstroom max"
+        "name": "Gemelde netstroom max"
       },
       "requests_today": {
         "name": "Requests vandaag"
       },
       "activity": {
-        "name": "Activiteit",
+        "name": "Laadpaal status",
         "state": {
           "available": "Beschikbaar",
           "charging": "Laden",
@@ -103,11 +97,14 @@
           "vehicle_error": "Voertuigfout"
         }
       },
-      "session_tariff_value": {
-        "name": "Sessie waarde (tarief)"
-      },
       "tariff": {
         "name": "Tarief"
+      },
+      "session_reimbursement": {
+        "name": "Sessie vergoeding"
+      },
+      "total_reimbursement": {
+        "name": "Totale vergoeding"
       }
     },
     "number": {

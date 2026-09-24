@@ -21,13 +21,17 @@ from homeassistant.const import (
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import ACTIVITY_OPTIONS, VEHICLE_STATUS_OPTIONS
+from .const import ACTIVITY_OPTIONS, DOMAIN, VEHICLE_STATUS_OPTIONS
 from .coordinator import BlueCurrentConfigEntry, BlueCurrentCoordinator, ChargePoint, to_float
 from .entity import BlueCurrentEntity
 
 PARALLEL_UPDATES = 0
+
+# Sensors dropped in 0.1.4; removed from the entity registry on setup.
+REMOVED_KEYS = ("session_stop", "session_cost", "session_tariff_value")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -118,23 +122,24 @@ SENSORS: tuple[BCSensorDescription, ...] = (
         value_fn=lambda cp, _c: cp.session_energy_kwh,
     ),
     BCSensorDescription(
-        key="session_cost",
+        key="session_reimbursement",
         device_class=SensorDeviceClass.MONETARY,
         native_unit_of_measurement="EUR",
         suggested_display_precision=2,
-        value_fn=_status("total_cost"),
+        value_fn=lambda cp, _c: cp.session_reimbursement[0],
     ),
     BCSensorDescription(
-        key="session_tariff_value",
+        key="total_reimbursement",
         device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
         native_unit_of_measurement="EUR",
         suggested_display_precision=2,
-        value_fn=lambda cp, _c: cp.session_tariff_value,
+        value_fn=lambda cp, _c: cp.reimbursement_base_eur,
     ),
     BCSensorDescription(
         key="tariff",
         native_unit_of_measurement="EUR/kWh",
-        suggested_display_precision=3,
+        suggested_display_precision=2,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda cp, _c: cp.tariff_price,
     ),
@@ -142,11 +147,6 @@ SENSORS: tuple[BCSensorDescription, ...] = (
         key="session_start",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=lambda cp, _c: cp.session_start,
-    ),
-    BCSensorDescription(
-        key="session_stop",
-        device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda cp, _c: cp.session_stop,
     ),
     BCSensorDescription(
         key="session_duration",
@@ -208,6 +208,8 @@ GRID_SENSORS: tuple[BCSensorDescription, ...] = (
         BCSensorDescription(
             key=f"grid_current_phase_{n}",
             device_class=SensorDeviceClass.CURRENT,
+            entity_category=EntityCategory.DIAGNOSTIC,
+            entity_registry_enabled_default=False,
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=AMP,
             suggested_display_precision=1,
@@ -218,6 +220,8 @@ GRID_SENSORS: tuple[BCSensorDescription, ...] = (
     BCSensorDescription(
         key="grid_max_current",
         device_class=SensorDeviceClass.CURRENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=AMP,
         suggested_display_precision=1,
@@ -239,6 +243,11 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
     evse_ids = list(coordinator.data.charge_points)
+    registry = er.async_get(hass)
+    for evse_id in evse_ids:
+        for old_key in REMOVED_KEYS:
+            if entity_id := registry.async_get_entity_id("sensor", DOMAIN, f"{evse_id}_{old_key}"):
+                registry.async_remove(entity_id)
     entities: list[BlueCurrentSensor] = [
         BlueCurrentSensor(coordinator, evse_id, desc) for evse_id in evse_ids for desc in SENSORS
     ]
@@ -266,7 +275,14 @@ class BlueCurrentSensor(BlueCurrentEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        if self.entity_description.key not in ("tariff", "session_tariff_value"):
+        if self.entity_description.key == "session_reimbursement":
+            amount, final = self.cp.session_reimbursement
+            return {
+                "final": final,
+                "blue_current_total_cost": to_float(self.cp.status.get("total_cost")),
+                "estimate": self.cp.session_tariff_value,
+            }
+        if self.entity_description.key != "tariff":
             return None
         t = self.cp.tariff
         return {

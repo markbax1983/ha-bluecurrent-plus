@@ -14,17 +14,18 @@ Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een v
 | Onbekende berichten van de server worden weggegooid | Die komen in debug-log en diagnostics terecht, zodat we kunnen ontdekken wat de API nog meer kan |
 | `resterende stroom` = limiet − *gemiddelde* fase | Limiet − *zwaarst belaste* fase |
 | Sessie start/einde worden overschreven door de `null`-waarden in live pushes | De laatst bekende tijden blijven staan; bij loskoppelen wordt de echte eindtijd één keer opgevraagd |
-| Sessiekosten blijven €0 bij laden met je eigen pas | **Sessie waarde (tarief)** = kWh × je ingestelde tarief uit my.bluecurrent.nl (excl. btw; incl. btw als attribuut) |
+| Sessiekosten staan tijdens het laden op €0 en komen pas bij het einde | **Sessie vergoeding**: live kWh × tarief (excl. btw) tijdens het laden, het bedrag van Blue Current zelf zodra de sessie klaar is (attribuut `final`). **Totale vergoeding** telt alle afgeronde sessies op |
 
 ## Entiteiten (per laadpaal)
 
-- **Sensoren:** laadvermogen, vermogen/stroom/spanning per fase, actieve fases, totaal geladen, sessie energie/kosten/waarde (tarief)/start/einde/duur, tarief, activiteit, voertuigstatus, maximale stroom, resterende stroom, netstroom per fase + max, requests vandaag, offline sinds
+- **Sensoren:** laadvermogen, laadvermogen/laadstroom per fase, netspanning per fase, actieve fases, totaal geladen, sessie energie/vergoeding/start/duur, totale vergoeding, tarief, laadpaal status, voertuigstatus, maximale laadstroom, resterende stroom, requests vandaag, offline sinds
+- **Diagnostisch, standaard uit:** gemelde netstroom per fase + max. Dat zijn de waarden die de paal van zijn meteringang krijgt, niet per se je echte netstroom
 - **Binary sensors:** laden, auto aangesloten, stroomlimiet actief, cloudverbinding
 - **Bediening:** max laadstroom (number), laadpas (select), start/stop laden, reset, herstart, plug & charge, alleen gekoppelde laadpassen, laadpaal blokkeren
 
 ## Events
 
-- `blue_current_plus_session_finished`: bij elke afgeronde sessie, met `evse_id`, `start`, `stop`, `energy_kwh`, `cost`, `tariff_value` en `duration_min`. Alleen voor sessies die tijdens het draaien zijn gezien, dus niet voor een oude sessie bij het opstarten. Handig voor factuurcontrole of ERE-registratie.
+- `blue_current_plus_session_finished`: bij elke afgeronde sessie, met `evse_id`, `start`, `stop`, `energy_kwh`, `reimbursement`, `reimbursement_final` en `duration_min`. Alleen voor sessies die tijdens het draaien zijn gezien, dus niet voor een oude sessie bij het opstarten. Handig voor factuurcontrole of ERE-registratie.
 - `blue_current_plus_command_result`: het resultaat van start/stop/reset/herstart.
 
 ## Installatie
@@ -33,6 +34,10 @@ Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een v
 2. Installeer **Blue Current Plus** en herstart Home Assistant.
 3. Tip: schakel de originele Blue Current-integratie uit zodra alles werkt. Ze kunnen naast elkaar draaien, maar ze verbruiken dezelfde dagelijkse request-limiet.
 4. Instellingen → Apparaten & diensten → Integratie toevoegen → *Blue Current Plus*, en vul je API-token in.
+
+## Tip: vergoeding per maand
+
+Maak in HA een *Meterhulp* (utility meter) op **Totale vergoeding** en/of **Totaal geladen**, met een maandelijkse cyclus. Die bedragen kun je rechtstreeks naast de creditfactuur leggen.
 
 ## Hoe werkt de max laadstroom?
 

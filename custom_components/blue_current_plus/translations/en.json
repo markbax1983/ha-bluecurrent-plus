@@ -5,31 +5,31 @@
         "name": "Charging power"
       },
       "power_phase_1": {
-        "name": "Power phase 1"
+        "name": "Charging power phase 1"
       },
       "power_phase_2": {
-        "name": "Power phase 2"
+        "name": "Charging power phase 2"
       },
       "power_phase_3": {
-        "name": "Power phase 3"
+        "name": "Charging power phase 3"
       },
       "current_phase_1": {
-        "name": "Current phase 1"
+        "name": "Charging current phase 1"
       },
       "current_phase_2": {
-        "name": "Current phase 2"
+        "name": "Charging current phase 2"
       },
       "current_phase_3": {
-        "name": "Current phase 3"
+        "name": "Charging current phase 3"
       },
       "voltage_phase_1": {
-        "name": "Voltage phase 1"
+        "name": "Grid voltage phase 1"
       },
       "voltage_phase_2": {
-        "name": "Voltage phase 2"
+        "name": "Grid voltage phase 2"
       },
       "voltage_phase_3": {
-        "name": "Voltage phase 3"
+        "name": "Grid voltage phase 3"
       },
       "active_phases": {
         "name": "Active phases"
@@ -40,20 +40,14 @@
       "session_energy": {
         "name": "Session energy"
       },
-      "session_cost": {
-        "name": "Session cost"
-      },
       "session_start": {
         "name": "Session start"
-      },
-      "session_stop": {
-        "name": "Session end"
       },
       "session_duration": {
         "name": "Session duration"
       },
       "max_usage": {
-        "name": "Maximum current"
+        "name": "Maximum charging current"
       },
       "smartcharging_max_usage": {
         "name": "Smart charging maximum current"
@@ -68,22 +62,22 @@
         "name": "Offline since"
       },
       "grid_current_phase_1": {
-        "name": "Grid current phase 1"
+        "name": "Reported grid current phase 1"
       },
       "grid_current_phase_2": {
-        "name": "Grid current phase 2"
+        "name": "Reported grid current phase 2"
       },
       "grid_current_phase_3": {
-        "name": "Grid current phase 3"
+        "name": "Reported grid current phase 3"
       },
       "grid_max_current": {
-        "name": "Grid max current"
+        "name": "Reported grid current max"
       },
       "requests_today": {
         "name": "Requests today"
       },
       "activity": {
-        "name": "Activity",
+        "name": "Charge point status",
         "state": {
           "available": "Available",
           "charging": "Charging",
@@ -103,11 +97,14 @@
           "vehicle_error": "Vehicle error"
         }
       },
-      "session_tariff_value": {
-        "name": "Session value (tariff)"
-      },
       "tariff": {
         "name": "Tariff"
+      },
+      "session_reimbursement": {
+        "name": "Session reimbursement"
+      },
+      "total_reimbursement": {
+        "name": "Total reimbursement"
       }
     },
     "number": {

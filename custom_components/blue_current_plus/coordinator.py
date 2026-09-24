@@ -118,6 +118,7 @@ class ChargePoint:
     settings: dict[str, Any] = field(default_factory=dict)
     # energy bookkeeping (persisted)
     energy_base_kwh: float = 0.0
+    reimbursement_base_eur: float = 0.0
     session_key: str | None = None
     session_kwh: float = 0.0
     finished_key: str | None = None
@@ -224,6 +225,21 @@ class ChargePoint:
         return round(kwh * price + start_fee, 2)
 
     @property
+    def session_finished(self) -> bool:
+        start, stop = self.session_start, self.session_stop
+        return start is not None and stop is not None and stop >= start
+
+    @property
+    def session_reimbursement(self) -> tuple[float | None, bool]:
+        """(amount, final). Live estimate while charging; Blue Current's own
+        amount (total_cost) once the session has ended."""
+        estimate = self.session_tariff_value
+        cost = to_float(self.status.get("total_cost"))
+        if self.session_finished and cost is not None and (cost > 0 or not estimate):
+            return round(cost, 2), True
+        return estimate, False
+
+    @property
     def energy_total_kwh(self) -> float:
         return round(self.energy_base_kwh + self.session_kwh, 3)
 
@@ -238,6 +254,7 @@ class ChargePoint:
     def as_storage(self) -> dict[str, Any]:
         return {
             "energy_base_kwh": self.energy_base_kwh,
+            "reimbursement_base_eur": self.reimbursement_base_eur,
             "session_key": self.session_key,
             "session_kwh": self.session_kwh,
             "finished_key": self.finished_key,
@@ -438,6 +455,7 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
                 cp = ChargePoint(evse_id=evse_id)
                 stored = self._stored.get(evse_id, {})
                 cp.energy_base_kwh = float(stored.get("energy_base_kwh", 0.0))
+                cp.reimbursement_base_eur = float(stored.get("reimbursement_base_eur", 0.0))
                 cp.session_key = stored.get("session_key")
                 cp.session_kwh = float(stored.get("session_kwh", 0.0))
                 cp.finished_key = stored.get("finished_key")
@@ -520,6 +538,8 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         elif cp.finished_key != key:
             cp.finished_key = key
             if cp.session_seen_open:
+                amount, _final = cp.session_reimbursement
+                cp.reimbursement_base_eur = round(cp.reimbursement_base_eur + (amount or 0.0), 2)
                 self._fire_finished(cp, start, stop)
         self._schedule_save()
 
@@ -531,8 +551,8 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
                 "start": start.isoformat(),
                 "stop": stop.isoformat(),
                 "energy_kwh": cp.session_kwh,
-                "cost": to_float(cp.status.get("total_cost")),
-                "tariff_value": cp.session_tariff_value,
+                "reimbursement": cp.session_reimbursement[0],
+                "reimbursement_final": cp.session_reimbursement[1],
                 "duration_min": cp.session_duration_min,
             },
         )
