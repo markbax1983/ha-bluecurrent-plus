@@ -57,6 +57,14 @@ Standaard gebruikt dit hetzelfde sessie-token als de websocket. Weigert Blue Cur
 
 Het icoon staat in `custom_components/blue_current_plus/brand/` en wordt vanaf Home Assistant 2026.3 automatisch getoond bij de integratie en in HACS. De bron staat in `assets/icon.svg`. Het is een eigen ontwerp en niet het logo van Blue Current: dit is geen officiële Blue Current-integratie.
 
+## Versies en releases
+
+Wijzigingen per versie staan in [CHANGELOG.md](CHANGELOG.md). Een nieuwe versie uitbrengen:
+
+1. Hoog `version` op in `custom_components/blue_current_plus/manifest.json`.
+2. Voeg bovenaan `CHANGELOG.md` een sectie `## [X.Y.Z] - datum` toe.
+3. Push naar `main`. De workflow *Release* draait de tests en maakt daarna tag `vX.Y.Z` en een GitHub Release met de tekst uit de changelog. HACS ziet de nieuwe versie dan als update.
+
 ## Ontwikkeling
 
 ```bash
