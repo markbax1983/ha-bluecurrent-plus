@@ -5,10 +5,13 @@ from __future__ import annotations
 from datetime import timedelta
 
 from homeassistant import config_entries
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
+import pytest
 from pytest_homeassistant_custom_component.common import async_capture_events, async_fire_time_changed
 
 from custom_components.blue_current_plus.const import DOMAIN
@@ -335,3 +338,62 @@ async def test_removed_entities_are_cleaned_up(hass: HomeAssistant, fake_session
         assert reg.async_get_entity_id("sensor", DOMAIN, f"{EVSE}_{key}") is None
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+async def test_set_tariff(hass: HomeAssistant, setup_entry, backend) -> None:
+    entity_id = eid(hass, "number", "reimbursement_tariff")
+    assert float(hass.states.get(entity_id).state) == 0.3
+    assert er.async_get(hass).async_get(entity_id).entity_category is EntityCategory.CONFIG
+
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": entity_id, "value": 0.41}, blocking=True
+    )
+    await hass.async_block_till_done()
+
+    url, body, headers = backend.rest[-1]
+    assert url == "https://api.bluecurrent.nl/app/bc_api/api/v2.0/editreimbursementtariff"
+    assert body == {"evse_id": EVSE, "amount": "0.41", "currency": "EUR"}
+    # websocket session token is reused
+    assert headers["Authorization"] == "Token sess"
+    st = hass.states.get(entity_id)
+    assert float(st.state) == 0.41
+    assert st.attributes["price_in_vat"] == round(0.41 * 1.21, 4)
+    # backend view refreshed over the websocket
+    assert backend.sent[-1] == {"command": "GET_CH_SETTINGS", "evse_id": EVSE, "Authorization": "Token sess"}
+    assert state(hass, "sensor", "tariff").attributes["price_ex_vat"] == 0.41
+
+
+async def test_set_tariff_out_of_range(hass: HomeAssistant, setup_entry, backend) -> None:
+    entity_id = eid(hass, "number", "reimbursement_tariff")
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "number", "set_value", {"entity_id": entity_id, "value": 4.0}, blocking=True
+        )
+    assert backend.rest == []
+
+
+async def test_set_tariff_rejected_then_portal_token(hass: HomeAssistant, setup_entry, backend) -> None:
+    entity_id = eid(hass, "number", "reimbursement_tariff")
+    backend.rest_status = 401
+    with pytest.raises(HomeAssistantError, match="portal"):
+        await hass.services.async_call(
+            "number", "set_value", {"entity_id": entity_id, "value": 0.35}, blocking=True
+        )
+    assert float(hass.states.get(entity_id).state) == 0.3
+    # rejected tariff call must not trigger a re-auth of the integration
+    assert not list(setup_entry.async_get_active_flows(hass, {config_entries.SOURCE_REAUTH}))
+
+    result = await hass.config_entries.options.async_init(setup_entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"portal_token": "Token portal123 "}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert setup_entry.options == {"portal_token": "portal123"}
+
+    backend.rest_status = 200
+    await hass.services.async_call(
+        "number", "set_value", {"entity_id": entity_id, "value": 0.35}, blocking=True
+    )
+    assert backend.rest[-1][2]["Authorization"] == "Token portal123"
+    assert float(hass.states.get(entity_id).state) == 0.35

@@ -9,6 +9,16 @@ DOMAIN = "blue_current_plus"
 LOGGER = logging.getLogger(__package__)
 
 URL = "wss://motown.bluecurrent.nl/haserver"
+# REST API used by my.bluecurrent.nl (not officially documented).
+PORTAL_URL = "https://api.bluecurrent.nl/app/bc_api/api/v2.0"
+
+# Options
+CONF_PORTAL_TOKEN = "portal_token"
+
+# Reimbursement tariff limits (EUR/kWh ex VAT) - guard against typos like 4.0.
+TARIFF_MIN = 0.05
+TARIFF_MAX = 1.50
+DEFAULT_VAT_FACTOR = 1.21
 BC_TZ = ZoneInfo("Europe/Amsterdam")
 
 # Charge card id the backend uses for "start without a card" (app session).

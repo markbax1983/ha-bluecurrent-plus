@@ -110,6 +110,9 @@
     "number": {
       "max_current": {
         "name": "Max charging current"
+      },
+      "reimbursement_tariff": {
+        "name": "Reimbursement tariff"
       }
     },
     "select": {
@@ -188,6 +191,17 @@
     "already_connected": {
       "title": "Blue Current: another connection is active",
       "description": "Blue Current refuses the connection because another client is connected with this account, probably the original Blue Current integration. Disable it."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Blue Current Plus",
+        "description": "Optional: portal token used to change the reimbursement tariff. Only needed if Blue Current rejects the regular token. Find it on my.bluecurrent.nl → DevTools → Network → any api.bluecurrent.nl request → value after \"Authorization: Token \". Leave empty to use the regular token.",
+        "data": {
+          "portal_token": "Portal token"
+        }
+      }
     }
   }
 }

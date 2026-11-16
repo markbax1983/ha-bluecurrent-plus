@@ -21,7 +21,7 @@ Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een v
 - **Sensoren:** laadvermogen, laadvermogen/laadstroom per fase, netspanning per fase, actieve fases, totaal geladen, sessie energie/vergoeding/start/duur, totale vergoeding, tarief, laadpaal status, voertuigstatus, maximale laadstroom, resterende stroom, requests vandaag, offline sinds
 - **Diagnostisch, standaard uit:** gemelde netstroom per fase + max. Dat zijn de waarden die de paal van zijn meteringang krijgt, niet per se je echte netstroom
 - **Binary sensors:** laden, auto aangesloten, stroomlimiet actief, cloudverbinding
-- **Bediening:** max laadstroom (number), laadpas (select), start/stop laden, reset, herstart, plug & charge, alleen gekoppelde laadpassen, laadpaal blokkeren
+- **Bediening:** max laadstroom (number), vergoedingstarief (number, € per kWh excl. btw), laadpas (select), start/stop laden, reset, herstart, plug & charge, alleen gekoppelde laadpassen, laadpaal blokkeren
 
 ## Events
 
@@ -42,6 +42,14 @@ Maak in HA een *Meterhulp* (utility meter) op **Totale vergoeding** en/of **Tota
 ## Hoe werkt de max laadstroom?
 
 Een waarde onder de `max_usage` van de paal maakt (of wijzigt) een *user override* voor de hele dag, elke dag (00:00–23:59, MA–ZO). Terugzetten naar het maximum verwijdert de override. Wijzigingen worden 5 seconden gebundeld, zodat automations of een slider de dagelijkse request-limiet niet opmaken.
+
+## Vergoedingstarief aanpassen
+
+Het number **Vergoedingstarief** toont het kWh-tarief excl. btw dat op my.bluecurrent.nl staat (attribuut `price_in_vat` = incl. btw) en past het aan met dezelfde REST-call als de portal (`POST api.bluecurrent.nl/app/bc_api/api/v2.0/editreimbursementtariff`). Grens 0,05–1,50 €/kWh tegen typefouten. Werkt ook als de paal zelf offline is. In een automation: `number.set_value`.
+
+Standaard gebruikt dit hetzelfde sessie-token als de websocket. Weigert Blue Current dat, dan krijg je een foutmelding; vul dan via **Configureren** een *portal-token* in (my.bluecurrent.nl → DevTools → Netwerk → een `api.bluecurrent.nl`-verzoek → de waarde na `Authorization: Token `). Een geweigerd tarief-verzoek start géén herauthenticatie van de integratie.
+
+> Let op: dit is geen officieel gedocumenteerde API; Blue Current kan hem zonder aankondiging wijzigen. Het tarief bepaalt je creditfactuur, controleer na een wijziging in de portal.
 
 ## Ontwikkeling
 

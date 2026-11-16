@@ -50,6 +50,28 @@ class FakeBackend:
         self.live: FakeWS | None = None
         self.status = copy.deepcopy(STATUS)
         self.schedule_id = 7
+        self.rest: list[tuple[str, dict[str, Any], dict[str, str]]] = []
+        self.rest_status = 200
+        self.tariff_ex_vat = 0.3
+
+    def rest_reply(self, url: str, body: dict[str, Any], headers: dict[str, str]) -> tuple[int, Any]:
+        """Mimics api.bluecurrent.nl (portal REST API)."""
+        self.rest.append((url, body, headers))
+        if self.rest_status != 200:
+            return self.rest_status, {"detail": "nope"}
+        if url.endswith("/editreimbursementtariff"):
+            self.tariff_ex_vat = float(body["amount"])
+            return 200, {
+                "object": "STATUS_EDIT_REIMBURSEMENT_TARIFF",
+                "success": True,
+                "error": "",
+                "result": {
+                    "amount": self.tariff_ex_vat,
+                    "currency": body["currency"],
+                    "evse_id": body["evse_id"],
+                },
+            }
+        return 404, {}
 
     def reply(self, cmd: dict[str, Any]) -> list[dict[str, Any]]:
         c = cmd["command"]
@@ -83,11 +105,12 @@ class FakeBackend:
                         "smart_charging": False,
                         "tariff": {
                             "tariff_id": "NLBCUT00",
-                            "price_ex_vat": 0.3,
-                            "price_in_vat": 0.363,
+                            "price_ex_vat": self.tariff_ex_vat,
+                            "price_in_vat": round(self.tariff_ex_vat * 1.21, 4),
                             "start_price_ex_vat": 0,
                             "start_price_in_vat": 0,
                             "currency": "EUR",
+                            "permission": "write",
                         },
                     },
                 }
@@ -197,6 +220,20 @@ class _Ctx:
         self.ws.closed = True
 
 
+class _Resp:
+    def __init__(self, status: int, data: Any) -> None:
+        self.status, self._data = status, data
+
+    async def json(self, content_type: str | None = None) -> Any:
+        return self._data
+
+    async def __aenter__(self) -> _Resp:
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        return None
+
+
 class FakeSession:
     def __init__(self, backend: FakeBackend) -> None:
         self.backend = backend
@@ -207,6 +244,9 @@ class FakeSession:
         # 1st/2nd connection of a setup are one-shots; mark every connection as
         # potentially live - the last one opened is the persistent one.
         return _Ctx(FakeWS(self.backend), live=True)
+
+    def post(self, url: str, json: dict[str, Any] | None = None, headers: dict | None = None, **kwargs):
+        return _Resp(*self.backend.rest_reply(url, json or {}, headers or {}))
 
 
 @pytest.fixture

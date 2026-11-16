@@ -110,6 +110,9 @@
     "number": {
       "max_current": {
         "name": "Max laadstroom"
+      },
+      "reimbursement_tariff": {
+        "name": "Vergoedingstarief"
       }
     },
     "select": {
@@ -188,6 +191,17 @@
     "already_connected": {
       "title": "Blue Current: andere verbinding actief",
       "description": "Blue Current weigert de verbinding omdat er al een andere client met dit account verbonden is, waarschijnlijk de originele Blue Current-integratie. Schakel die uit."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Blue Current Plus",
+        "description": "Optioneel: portal-token voor het aanpassen van het vergoedingstarief. Alleen nodig als Blue Current het gewone token weigert. Vinden: my.bluecurrent.nl → DevTools → Netwerk → een api.bluecurrent.nl-verzoek → waarde na \"Authorization: Token \". Leeg laten = gewone token gebruiken.",
+        "data": {
+          "portal_token": "Portal-token"
+        }
+      }
     }
   }
 }

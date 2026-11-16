@@ -5,8 +5,15 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from homeassistant.config_entries import SOURCE_REAUTH, ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    SOURCE_REAUTH,
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_API_TOKEN
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
@@ -18,7 +25,7 @@ from .api import (
     InvalidToken,
     RequestLimitReached,
 )
-from .const import DOMAIN, LOGGER
+from .const import CONF_PORTAL_TOKEN, DOMAIN, LOGGER
 
 SCHEMA = vol.Schema({vol.Required(CONF_API_TOKEN): str})
 
@@ -27,6 +34,11 @@ class BlueCurrentPlusConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return BlueCurrentPlusOptionsFlow()
 
     async def _validate(self, token: str) -> tuple[str, str]:
         api = BlueCurrentApi(async_get_clientsession(self.hass))
@@ -66,3 +78,17 @@ class BlueCurrentPlusConfigFlow(ConfigFlow, domain=DOMAIN):
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
         return await self.async_step_user()
+
+
+class BlueCurrentPlusOptionsFlow(OptionsFlow):
+    """Optional portal token for the my.bluecurrent.nl REST API (tariff)."""
+
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        if user_input is not None:
+            token = (user_input.get(CONF_PORTAL_TOKEN) or "").strip()
+            if token.lower().startswith("token "):
+                token = token[6:].strip()
+            return self.async_create_entry(data={CONF_PORTAL_TOKEN: token} if token else {})
+        current = self.config_entry.options.get(CONF_PORTAL_TOKEN, "")
+        schema = vol.Schema({vol.Optional(CONF_PORTAL_TOKEN, description={"suggested_value": current}): str})
+        return self.async_show_form(step_id="init", data_schema=schema)

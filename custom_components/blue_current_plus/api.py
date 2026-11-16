@@ -15,7 +15,7 @@ from typing import Any
 
 import aiohttp
 
-from .const import BC_TZ, LOGGER, URL
+from .const import BC_TZ, LOGGER, PORTAL_URL, URL
 
 
 class BlueCurrentError(Exception):
@@ -36,6 +36,10 @@ class RequestLimitReached(BlueCurrentError):
 
 class AlreadyConnected(BlueCurrentError):
     """Another client is connected with this account."""
+
+
+class PortalAuthFailed(BlueCurrentError):
+    """The portal REST API rejected our token (does NOT mean re-auth is needed)."""
 
 
 ERROR_CODES: dict[int, type[BlueCurrentError]] = {
@@ -178,6 +182,50 @@ class BlueCurrentApi:
         self.requests.hit()
         LOGGER.debug("-> %s", command)
         await self._ws.send_str(json.dumps(payload))
+
+    # ------------------------------------------------------- portal REST API
+    async def edit_reimbursement_tariff(
+        self,
+        evse_id: str,
+        amount: float,
+        currency: str = "EUR",
+        portal_token: str | None = None,
+    ) -> dict[str, Any]:
+        """Set the reimbursement tariff (per kWh, EXCLUDING VAT).
+
+        Same call my.bluecurrent.nl makes. Authenticates with the websocket
+        session token unless a separate portal token is given.
+        """
+        auth = f"Token {portal_token}" if portal_token else self.auth
+        if not auth:
+            raise PortalAuthFailed("no token available")
+        body = {"evse_id": evse_id, "amount": f"{amount:.2f}", "currency": currency}
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Authorization": auth,
+            "Origin": "https://my.bluecurrent.nl",
+            "Referer": "https://my.bluecurrent.nl/",
+        }
+        LOGGER.debug("-> editreimbursementtariff %s", body)
+        try:
+            async with self._session.post(
+                f"{PORTAL_URL}/editreimbursementtariff",
+                json=body,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
+                if resp.status in (401, 403):
+                    raise PortalAuthFailed(f"HTTP {resp.status}")
+                if resp.status >= 400:
+                    raise CannotConnect(f"HTTP {resp.status}")
+                data = await resp.json(content_type=None)
+        except (aiohttp.ClientError, TimeoutError) as err:
+            raise CannotConnect(str(err)) from err
+        if not isinstance(data, dict) or not data.get("success"):
+            error = data.get("error") if isinstance(data, dict) else data
+            raise BlueCurrentError(f"tariff not changed: {error or data}")
+        result = data.get("result")
+        return result if isinstance(result, dict) else {}
 
     async def close(self) -> None:
         if self._ws is not None and not self._ws.closed:

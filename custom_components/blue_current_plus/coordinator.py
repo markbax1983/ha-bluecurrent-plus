@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
+import contextlib
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import time
@@ -12,6 +13,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_API_TOKEN
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
@@ -23,19 +25,24 @@ from .api import (
     BlueCurrentApi,
     BlueCurrentError,
     InvalidToken,
+    PortalAuthFailed,
     RequestLimitReached,
 )
 from .const import (
     BACKOFF_MAX,
     BACKOFF_START,
     BC_TZ,
+    CONF_PORTAL_TOKEN,
     DAY_CODES,
+    DEFAULT_VAT_FACTOR,
     DOMAIN,
     LOGGER,
     NO_CARD_UID,
     OVERRIDE_DEBOUNCE,
     RAW_BUFFER_SIZE,
     STORAGE_VERSION,
+    TARIFF_MAX,
+    TARIFF_MIN,
     VEHICLE_STATUS,
 )
 
@@ -735,6 +742,38 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
     async def async_start_session(self, evse_id: str, card_uid: str | None = None) -> None:
         uid = card_uid or self.data.charge_points[evse_id].card_uid or NO_CARD_UID
         await self.api.send("START_SESSION", evse_id=evse_id, session_token=uid)
+
+    async def async_set_tariff(self, evse_id: str, amount: float) -> None:
+        """Set the reimbursement tariff (EUR/kWh ex VAT) via the portal REST API."""
+        cp = self.data.charge_points[evse_id]
+        tariff = cp.tariff
+        if tariff.get("permission") not in (None, "write"):
+            raise HomeAssistantError("This account may not change the tariff of this charge point")
+        if not TARIFF_MIN <= amount <= TARIFF_MAX:
+            raise ServiceValidationError(f"Tariff must be between {TARIFF_MIN} and {TARIFF_MAX} EUR/kWh")
+        portal_token = self.config_entry.options.get(CONF_PORTAL_TOKEN) or None
+        try:
+            result = await self.api.edit_reimbursement_tariff(
+                evse_id, amount, str(tariff.get("currency") or "EUR"), portal_token
+            )
+        except PortalAuthFailed as err:
+            raise HomeAssistantError(
+                "Blue Current rejected the token for changing the tariff. Set a portal "
+                "token in the integration options (Configure)."
+            ) from err
+        except BlueCurrentError as err:
+            raise HomeAssistantError(f"Changing the tariff failed: {err}") from err
+
+        new = to_float(result.get("amount"))
+        new = round(amount, 2) if new is None else new
+        old_ex, old_in = to_float(tariff.get("price_ex_vat")), to_float(tariff.get("price_in_vat"))
+        factor = old_in / old_ex if old_ex and old_in else DEFAULT_VAT_FACTOR
+        cp.settings["tariff"] = {**tariff, "price_ex_vat": new, "price_in_vat": round(new * factor, 4)}
+        LOGGER.info("Tariff of %s set to %.2f EUR/kWh ex VAT", evse_id, new)
+        self.async_set_updated_data(self.data)
+        # Confirm with the backend's own view (also refreshes tariff_id).
+        with contextlib.suppress(BlueCurrentError):
+            await self.api.send("GET_CH_SETTINGS", evse_id=evse_id)
 
     @callback
     def async_select_card(self, evse_id: str, uid: str) -> None:

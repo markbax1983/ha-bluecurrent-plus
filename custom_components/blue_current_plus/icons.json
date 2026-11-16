@@ -11,7 +11,8 @@
       "current_left": { "default": "mdi:gauge" }
     },
     "number": {
-      "max_current": { "default": "mdi:current-ac" }
+      "max_current": { "default": "mdi:current-ac" },
+      "reimbursement_tariff": { "default": "mdi:cash-sync" }
     },
     "select": {
       "charge_card": { "default": "mdi:card-account-details" }
