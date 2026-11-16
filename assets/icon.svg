@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2F80ED"/>
+      <stop offset="1" stop-color="#1A4FA8"/>
+    </linearGradient>
+  </defs>
+  <!-- rounded square tile -->
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="url(#bg)"/>
+  <!-- charging station body -->
+  <rect x="58" y="52" width="92" height="146" rx="16" fill="#FFFFFF"/>
+  <rect x="72" y="68" width="64" height="40" rx="7" fill="#1A4FA8"/>
+  <!-- lightning bolt on the screen -->
+  <path d="M108 72 L90 92 L102 92 L96 104 L118 84 L106 84 Z" fill="#7FE0A8"/>
+  <!-- base -->
+  <rect x="48" y="192" width="112" height="14" rx="7" fill="#FFFFFF"/>
+  <!-- cable from station to plug -->
+  <path d="M150 128 C 186 128, 190 150, 190 172" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round"/>
+  <!-- plug head -->
+  <rect x="176" y="168" width="28" height="22" rx="6" fill="#FFFFFF"/>
+  <rect x="181" y="189" width="5" height="10" rx="2" fill="#FFFFFF"/>
+  <rect x="194" y="189" width="5" height="10" rx="2" fill="#FFFFFF"/>
+  <!-- plus badge -->
+  <circle cx="192" cy="72" r="34" fill="#7FE0A8" stroke="#1A4FA8" stroke-width="6"/>
+  <rect x="188" y="52" width="8" height="40" rx="4" fill="#1A4FA8"/>
+  <rect x="172" y="68" width="40" height="8" rx="4" fill="#1A4FA8"/>
+</svg>

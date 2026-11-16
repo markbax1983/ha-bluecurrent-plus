@@ -1,3 +1,5 @@
+<img src="custom_components/blue_current_plus/brand/icon@2x.png" width="96" align="right" alt="">
+
 # Blue Current Plus
 
 Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een vervanger voor de standaard [`blue_current`](https://github.com/bluecurrent/ha-bluecurrent)-integratie, met een eigen websocket-client in plaats van de `bluecurrent-api`-library.
@@ -50,6 +52,10 @@ Het number **Vergoedingstarief** toont het kWh-tarief excl. btw dat op my.bluecu
 Standaard gebruikt dit hetzelfde sessie-token als de websocket. Weigert Blue Current dat, dan krijg je een foutmelding; vul dan via **Configureren** een *portal-token* in (my.bluecurrent.nl → DevTools → Netwerk → een `api.bluecurrent.nl`-verzoek → de waarde na `Authorization: Token `). Een geweigerd tarief-verzoek start géén herauthenticatie van de integratie.
 
 > Let op: dit is geen officieel gedocumenteerde API; Blue Current kan hem zonder aankondiging wijzigen. Het tarief bepaalt je creditfactuur, controleer na een wijziging in de portal.
+
+## Icoon
+
+Het icoon staat in `custom_components/blue_current_plus/brand/` en wordt vanaf Home Assistant 2026.3 automatisch getoond bij de integratie en in HACS. De bron staat in `assets/icon.svg`. Het is een eigen ontwerp en niet het logo van Blue Current: dit is geen officiële Blue Current-integratie.
 
 ## Ontwikkeling
 
