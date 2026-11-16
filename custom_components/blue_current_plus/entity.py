@@ -22,7 +22,9 @@ class BlueCurrentEntity(CoordinatorEntity[BlueCurrentCoordinator]):
         cp = coordinator.data.charge_points[evse_id]
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, evse_id)},
-            name=cp.name if cp.name and cp.name != evse_id else f"Laadpaal {evse_id}",
+            name=cp.name if cp.name and cp.name != evse_id else None,
+            translation_key=None if cp.name and cp.name != evse_id else "charge_point",
+            translation_placeholders={"evse_id": evse_id},
             manufacturer="Blue Current",
             model=cp.model or None,
             serial_number=evse_id,

@@ -20,6 +20,7 @@ REDACT = {
     "card_uid",
     "login",
     "customer_id",
+    "portal_token",
 }
 
 

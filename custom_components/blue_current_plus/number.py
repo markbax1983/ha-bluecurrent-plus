@@ -111,6 +111,7 @@ class TariffNumber(BlueCurrentEntity, NumberEntity):
         t = self.cp.tariff
         return {
             "price_in_vat": t.get("price_in_vat"),
+            "start_price_ex_vat": t.get("start_price_ex_vat"),
             "tariff_id": t.get("tariff_id"),
             "currency": t.get("currency"),
             "permission": t.get("permission"),

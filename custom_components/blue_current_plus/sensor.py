@@ -30,8 +30,9 @@ from .entity import BlueCurrentEntity
 
 PARALLEL_UPDATES = 0
 
-# Sensors dropped in 0.1.4; removed from the entity registry on setup.
-REMOVED_KEYS = ("session_stop", "session_cost", "session_tariff_value")
+# Sensors that no longer exist; removed from the entity registry on setup.
+# 0.1.7: "tariff" is replaced by the number entity "reimbursement_tariff".
+REMOVED_KEYS = ("tariff",)
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -135,13 +136,6 @@ SENSORS: tuple[BCSensorDescription, ...] = (
         native_unit_of_measurement="EUR",
         suggested_display_precision=2,
         value_fn=lambda cp, _c: cp.reimbursement_base_eur,
-    ),
-    BCSensorDescription(
-        key="tariff",
-        native_unit_of_measurement="EUR/kWh",
-        suggested_display_precision=2,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda cp, _c: cp.tariff_price,
     ),
     BCSensorDescription(
         key="session_start",
@@ -275,21 +269,13 @@ class BlueCurrentSensor(BlueCurrentEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        if self.entity_description.key == "session_reimbursement":
-            amount, final = self.cp.session_reimbursement
-            return {
-                "final": final,
-                "blue_current_total_cost": to_float(self.cp.status.get("total_cost")),
-                "estimate": self.cp.session_tariff_value,
-            }
-        if self.entity_description.key != "tariff":
+        if self.entity_description.key != "session_reimbursement":
             return None
-        t = self.cp.tariff
+        _amount, final = self.cp.session_reimbursement
         return {
-            "tariff_id": t.get("tariff_id"),
-            "price_ex_vat": t.get("price_ex_vat"),
-            "price_in_vat": t.get("price_in_vat"),
-            "start_price_ex_vat": t.get("start_price_ex_vat"),
+            "final": final,
+            "blue_current_total_cost": to_float(self.cp.status.get("total_cost")),
+            "estimate": self.cp.session_tariff_value,
         }
 
     @property

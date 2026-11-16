@@ -1,4 +1,9 @@
 {
+  "device": {
+    "charge_point": {
+      "name": "Charge point {evse_id}"
+    }
+  },
   "entity": {
     "sensor": {
       "power": {
@@ -96,9 +101,6 @@
           "no_power": "No power",
           "vehicle_error": "Vehicle error"
         }
-      },
-      "tariff": {
-        "name": "Tariff"
       },
       "session_reimbursement": {
         "name": "Session reimbursement"

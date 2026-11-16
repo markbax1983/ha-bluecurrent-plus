@@ -2,73 +2,95 @@
 
 # Blue Current Plus
 
-Een slimmere Home Assistant-integratie voor Blue Current-laadpalen. Het is een vervanger voor de standaard [`blue_current`](https://github.com/bluecurrent/ha-bluecurrent)-integratie, met een eigen websocket-client in plaats van de `bluecurrent-api`-library.
+Onofficiële Home Assistant-integratie voor laadpalen van [Blue Current](https://www.bluecurrent.nl). Een alternatief voor de standaard `blue_current`-integratie: dezelfde cloudverbinding, maar met kloppende vermogens- en energiewaarden, bediening via gewone entiteiten (geen services) en meer inzicht in sessies en vergoedingen.
 
-## Waarom?
+> Dit project staat los van Blue Current. Het gebruikt de websocket-API van Blue Current voor Home Assistant en, voor het tarief, een niet-gedocumenteerde API van my.bluecurrent.nl. Die kunnen zonder aankondiging veranderen.
 
-| Probleem in de standaard integratie | Blue Current Plus |
-|---|---|
-| `total_kw` rekent `gem. I × gem. U × 1,732` met fasespanning. Bij 3×16 A geeft dat ~6,4 kW in plaats van ~11 kW. | **Laadvermogen** = Σ (U × I) per fase, plus het vermogen per fase |
-| Geen energiesensor voor het Energie-dashboard (`actual_kwh` begint elke sessie op 0) | **Totaal geladen**: oplopende kWh-teller (`total_increasing`), bewaard over herstarts heen |
-| Laadpassen worden nooit opgehaald, de RFID-UID moet je zelf zoeken | **Laadpas**-select met naam en EMP-id; de knop **Start laden** gebruikt de gekozen pas |
-| Max laadstroom alleen via een service; faalt stil door `KeyError: 'data'` | **Max laadstroom**-slider (number), met debounce: een sleepbeweging kost één request |
-| Bij de request-limiet de hele dag `unavailable`, zonder uitleg | Request-teller, oplopende backoff, en een repair-melding met oorzaak |
-| Onbekende berichten van de server worden weggegooid | Die komen in debug-log en diagnostics terecht, zodat we kunnen ontdekken wat de API nog meer kan |
-| `resterende stroom` = limiet − *gemiddelde* fase | Limiet − *zwaarst belaste* fase |
-| Sessie start/einde worden overschreven door de `null`-waarden in live pushes | De laatst bekende tijden blijven staan; bij loskoppelen wordt de echte eindtijd één keer opgevraagd |
-| Sessiekosten staan tijdens het laden op €0 en komen pas bij het einde | **Sessie vergoeding**: live kWh × tarief (excl. btw) tijdens het laden, het bedrag van Blue Current zelf zodra de sessie klaar is (attribuut `final`). **Totale vergoeding** telt alle afgeronde sessies op |
+## Wat zit erin
 
-## Entiteiten (per laadpaal)
-
-- **Sensoren:** laadvermogen, laadvermogen/laadstroom per fase, netspanning per fase, actieve fases, totaal geladen, sessie energie/vergoeding/start/duur, totale vergoeding, tarief, laadpaal status, voertuigstatus, maximale laadstroom, resterende stroom, requests vandaag, offline sinds
-- **Diagnostisch, standaard uit:** gemelde netstroom per fase + max. Dat zijn de waarden die de paal van zijn meteringang krijgt, niet per se je echte netstroom
-- **Binary sensors:** laden, auto aangesloten, stroomlimiet actief, cloudverbinding
-- **Bediening:** max laadstroom (number), vergoedingstarief (number, € per kWh excl. btw), laadpas (select), start/stop laden, reset, herstart, plug & charge, alleen gekoppelde laadpassen, laadpaal blokkeren
-
-## Events
-
-- `blue_current_plus_session_finished`: bij elke afgeronde sessie, met `evse_id`, `start`, `stop`, `energy_kwh`, `reimbursement`, `reimbursement_final` en `duration_min`. Alleen voor sessies die tijdens het draaien zijn gezien, dus niet voor een oude sessie bij het opstarten. Handig voor factuurcontrole of ERE-registratie.
-- `blue_current_plus_command_result`: het resultaat van start/stop/reset/herstart.
+- **Juist laadvermogen**: per fase U × I, opgeteld. De standaard integratie rekent met gemiddelden en komt bij 3 × 16 A op zo'n 6,4 kW in plaats van ~11 kW.
+- **Energie-dashboard**: een oplopende kWh-teller over alle sessies heen, bewaard over herstarts.
+- **Max laadstroom als schuifregelaar**: wijzigingen worden gebundeld, zodat een automation of slider niet de dagelijkse request-limiet opmaakt.
+- **Laadpas kiezen** voor de knop *Start laden*, met naam en EMP-id; je hoeft de RFID-UID niet zelf op te zoeken.
+- **Vergoedingstarief** uitlezen en aanpassen (€/kWh excl. btw), ook vanuit een automation.
+- **Sessievergoeding**: live schatting tijdens het laden, het bedrag van Blue Current zodra de sessie klaar is. Plus een teller voor de totale vergoeding.
+- **Robuuste verbinding**: automatisch opnieuw verbinden, request-teller en een melding onder *Reparaties* als de limiet bereikt is of een andere client verbonden is.
 
 ## Installatie
 
-1. HACS → Integraties → ⋮ → *Aangepaste repositories* → `https://github.com/markbax1983/ha-bluecurrent-plus` (type: Integratie)
+Vereist Home Assistant 2025.2 of nieuwer (het icoon wordt getoond vanaf 2026.3).
+
+1. HACS → ⋮ → *Aangepaste repositories* → `https://github.com/markbax1983/ha-bluecurrent-plus`, type *Integratie*.
 2. Installeer **Blue Current Plus** en herstart Home Assistant.
-3. Tip: schakel de originele Blue Current-integratie uit zodra alles werkt. Ze kunnen naast elkaar draaien, maar ze verbruiken dezelfde dagelijkse request-limiet.
-4. Instellingen → Apparaten & diensten → Integratie toevoegen → *Blue Current Plus*, en vul je API-token in.
+3. *Instellingen → Apparaten & diensten → Integratie toevoegen → Blue Current Plus*.
+4. Vul je API-token in. Dat maak je aan in de Blue Current-app of op my.bluecurrent.nl (*API-token genereren*).
 
-## Tip: vergoeding per maand
+**Gebruik je ook de standaard Blue Current-integratie?** Beide kunnen tegelijk draaien, maar delen dezelfde dagelijkse request-limiet. Schakel de standaard integratie uit zodra alles werkt.
 
-Maak in HA een *Meterhulp* (utility meter) op **Totale vergoeding** en/of **Totaal geladen**, met een maandelijkse cyclus. Die bedragen kun je rechtstreeks naast de creditfactuur leggen.
+## Entiteiten
 
-## Hoe werkt de max laadstroom?
+Per laadpaal wordt één apparaat aangemaakt.
 
-Een waarde onder de `max_usage` van de paal maakt (of wijzigt) een *user override* voor de hele dag, elke dag (00:00–23:59, MA–ZO). Terugzetten naar het maximum verwijdert de override. Wijzigingen worden 5 seconden gebundeld, zodat automations of een slider de dagelijkse request-limiet niet opmaken.
+| Soort | Entiteiten |
+|---|---|
+| Vermogen en stroom | Laadvermogen (totaal en per fase), Laadstroom per fase, Netspanning per fase, Actieve fases, Maximale laadstroom, Resterende stroom (op de zwaarst belaste fase) |
+| Energie en geld | Totaal geladen (kWh, voor het Energie-dashboard), Sessie energie, Sessie vergoeding, Totale vergoeding |
+| Sessie en status | Sessie start, Sessie duur, Laadpaal status, Voertuigstatus, Laden, Auto aangesloten, Stroomlimiet actief |
+| Bediening | Max laadstroom, Laadpas, Start laden, Stop laden, Laadpaal blokkeren |
+| Configuratie | Vergoedingstarief, Plug & charge, Alleen gekoppelde laadpassen, Reset, Herstart |
+| Diagnostisch | Cloudverbinding, Requests vandaag, Offline sinds, Smart charging maximale stroom, Offline maximale stroom, Gemelde netstroom per fase en max (standaard uit) |
 
-## Vergoedingstarief aanpassen
+*Gemelde netstroom* is wat de laadpaal van zijn meteringang binnenkrijgt, bijvoorbeeld via lokale load balancing. Dat is niet per se je werkelijke netstroom.
 
-Het number **Vergoedingstarief** toont het kWh-tarief excl. btw dat op my.bluecurrent.nl staat (attribuut `price_in_vat` = incl. btw) en past het aan met dezelfde REST-call als de portal (`POST api.bluecurrent.nl/app/bc_api/api/v2.0/editreimbursementtariff`). Grens 0,05–1,50 €/kWh tegen typefouten. Werkt ook als de paal zelf offline is. In een automation: `number.set_value`.
+## Max laadstroom
 
-Standaard gebruikt dit hetzelfde sessie-token als de websocket. Weigert Blue Current dat, dan krijg je een foutmelding; vul dan via **Configureren** een *portal-token* in (my.bluecurrent.nl → DevTools → Netwerk → een `api.bluecurrent.nl`-verzoek → de waarde na `Authorization: Token `). Een geweigerd tarief-verzoek start géén herauthenticatie van de integratie.
+Een waarde onder het maximum van de laadpaal maakt bij Blue Current een *user override* aan voor de hele dag, elke dag (00:00–23:59, ma–zo). Terugzetten naar het maximum verwijdert die override weer. Wijzigingen binnen 5 seconden worden gebundeld tot één request.
 
-> Let op: dit is geen officieel gedocumenteerde API; Blue Current kan hem zonder aankondiging wijzigen. Het tarief bepaalt je creditfactuur, controleer na een wijziging in de portal.
+## Vergoedingstarief
 
-## Icoon
+Het number **Vergoedingstarief** toont het kWh-tarief excl. btw zoals het op my.bluecurrent.nl staat; het attribuut `price_in_vat` geeft het bedrag incl. btw. Aanpassen kan in de interface of met `number.set_value`, ook als de laadpaal zelf offline is. Waarden buiten 0,05–1,50 €/kWh worden geweigerd, tegen typefouten.
 
-Het icoon staat in `custom_components/blue_current_plus/brand/` en wordt vanaf Home Assistant 2026.3 automatisch getoond bij de integratie en in HACS. De bron staat in `assets/icon.svg`. Het is een eigen ontwerp en niet het logo van Blue Current: dit is geen officiële Blue Current-integratie.
+- Je Blue Current-abonnement moet het aanpassen van het tarief toestaan (attribuut `permission` is dan `write`).
+- De integratie gebruikt het token dat ze al heeft. Weigert Blue Current dat, dan krijg je een foutmelding. Vul dan bij **Configureren** een *portal-token* in: op my.bluecurrent.nl → DevTools → Netwerk → een verzoek naar `api.bluecurrent.nl` → de waarde na `Authorization: Token `.
+- Het tarief bepaalt je creditfactuur. Controleer na een wijziging in de portal of het goed staat.
 
-## Versies en releases
+## Events
 
-Wijzigingen per versie staan in [CHANGELOG.md](CHANGELOG.md). Een nieuwe versie uitbrengen:
+| Event | Wanneer | Data |
+|---|---|---|
+| `blue_current_plus_session_finished` | Een sessie die tijdens het draaien gezien is, is afgerond | `evse_id`, `start`, `stop`, `energy_kwh`, `reimbursement`, `reimbursement_final`, `duration_min` |
+| `blue_current_plus_command_result` | Antwoord op start, stop, reset of herstart | `evse_id`, `command`, `success`, `error` |
 
-1. Hoog `version` op in `custom_components/blue_current_plus/manifest.json`.
-2. Voeg bovenaan `CHANGELOG.md` een sectie `## [X.Y.Z] - datum` toe.
-3. Push naar `main`. De workflow *Release* draait de tests en maakt daarna tag `vX.Y.Z` en een GitHub Release met de tekst uit de changelog. HACS ziet de nieuwe versie dan als update.
+Handig voor bijvoorbeeld factuurcontrole of het bijhouden van ERE-registraties.
+
+**Tip:** maak een *Meterhulp* (utility meter) op *Totale vergoeding* of *Totaal geladen* met een maandelijkse cyclus. Die bedragen kun je direct naast de creditfactuur leggen.
+
+## Beperkingen
+
+- **Getest met één laadpaal** (een U:MOVE in Nederland) op één account. Meerdere laadpalen per account worden ondersteund, maar zijn niet in de praktijk getest. Dat geldt vooral voor overrides die met andere laadpalen gedeeld worden; de netstroomsensoren hangen aan de eerste laadpaal.
+- **Smart charging** (laden op basis van stroomprijs) wordt alleen uitgelezen, niet ingesteld.
+- **Tijden en request-limiet** gaan uit van de tijdzone van Blue Current (Europe/Amsterdam); de limiet reset om middernacht.
+- **Btw**: het bedrag incl. btw komt van Blue Current. Alleen direct na het aanpassen van het tarief rekent de integratie het zelf even uit, tot Blue Current het nieuwe bedrag stuurt.
+- **Vergoedingen** zijn in euro's, zoals Blue Current ze aanlevert.
+
+Werkt iets niet bij jouw laadpaal? Open een [issue](https://github.com/markbax1983/ha-bluecurrent-plus/issues) en voeg de *diagnostics* van de integratie toe (tokens en pasnummers zijn daarin weggelaten).
 
 ## Ontwikkeling
 
 ```bash
 pip install -r requirements_test.txt
-pytest -q      # draait tegen een gesimuleerde Blue Current-backend
+pytest -q        # tests tegen een gesimuleerde Blue Current-backend
 ruff check .
 ```
+
+### Nieuwe versie uitbrengen
+
+1. Hoog `version` op in `custom_components/blue_current_plus/manifest.json`.
+2. Zet bovenaan [CHANGELOG.md](CHANGELOG.md) een sectie `## [X.Y.Z] - datum`.
+3. Push naar `main`. De workflow *Release* draait de tests en maakt daarna tag `vX.Y.Z` en een GitHub Release met de tekst uit de changelog.
+
+Het icoon staat in `custom_components/blue_current_plus/brand/`; de bron is `assets/icon.svg`. Het is een eigen ontwerp, niet het logo van Blue Current.
+
+## Licentie
+
+[MIT](LICENSE)

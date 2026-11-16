@@ -1,4 +1,9 @@
 {
+  "device": {
+    "charge_point": {
+      "name": "Laadpaal {evse_id}"
+    }
+  },
   "entity": {
     "sensor": {
       "power": {
@@ -96,9 +101,6 @@
           "no_power": "Geen stroom",
           "vehicle_error": "Voertuigfout"
         }
-      },
-      "tariff": {
-        "name": "Tarief"
       },
       "session_reimbursement": {
         "name": "Sessie vergoeding"

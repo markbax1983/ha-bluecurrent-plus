@@ -10,7 +10,7 @@ from .const import NO_CARD_UID
 from .coordinator import BlueCurrentConfigEntry, BlueCurrentCoordinator
 from .entity import BlueCurrentEntity
 
-NO_CARD_LABEL = "Zonder laadpas"
+NO_CARD_LABELS = {"nl": "Zonder laadpas", "en": "No charge card"}
 
 
 async def async_setup_entry(
@@ -36,8 +36,12 @@ class ChargeCardSelect(BlueCurrentEntity, SelectEntity):
     def __init__(self, coordinator: BlueCurrentCoordinator, evse_id: str) -> None:
         super().__init__(coordinator, evse_id, "charge_card")
 
+    @property
+    def _no_card_label(self) -> str:
+        return NO_CARD_LABELS.get(self.hass.config.language.split("-")[0], NO_CARD_LABELS["en"])
+
     def _labels(self) -> dict[str, str]:
-        labels = {NO_CARD_LABEL: NO_CARD_UID}
+        labels = {self._no_card_label: NO_CARD_UID}
         for uid, card in self.coordinator.data.cards.items():
             labels[card_label(uid, card)] = uid
         return labels
@@ -52,7 +56,7 @@ class ChargeCardSelect(BlueCurrentEntity, SelectEntity):
         for label, value in self._labels().items():
             if value == uid:
                 return label
-        return NO_CARD_LABEL if uid == NO_CARD_UID else None
+        return self._no_card_label if uid == NO_CARD_UID else None
 
     @property
     def extra_state_attributes(self) -> dict[str, object]:

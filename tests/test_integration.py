@@ -44,7 +44,9 @@ async def test_sensors(hass: HomeAssistant, setup_entry) -> None:
     # reported grid current: diagnostic, disabled by default
     grid = er.async_get(hass).async_get(eid(hass, "sensor", "grid_max_current"))
     assert grid.disabled_by is er.RegistryEntryDisabler.INTEGRATION
-    assert state(hass, "sensor", "tariff").attributes["price_ex_vat"] == 0.3
+    tariff = state(hass, "number", "reimbursement_tariff")
+    assert float(tariff.state) == 0.3
+    assert tariff.attributes["price_in_vat"] == 0.363
     assert state(hass, "binary_sensor", "charging").state == "on"
     assert state(hass, "binary_sensor", "vehicle_connected").state == "on"
     assert state(hass, "binary_sensor", "cloud_connection").state == "on"
@@ -134,10 +136,10 @@ async def test_max_current_override_debounced(hass: HomeAssistant, setup_entry, 
 
 async def test_card_select_and_start(hass: HomeAssistant, setup_entry, backend) -> None:
     select = state(hass, "select", "charge_card")
-    assert select.state == "Zonder laadpas"
-    mark = next(o for o in select.attributes["options"] if "Mark" in o)
+    assert select.state == "No charge card"
+    card = next(o for o in select.attributes["options"] if "Testpas" in o)
     await hass.services.async_call(
-        "select", "select_option", {"entity_id": select.entity_id, "option": mark}, blocking=True
+        "select", "select_option", {"entity_id": select.entity_id, "option": card}, blocking=True
     )
     await hass.services.async_call(
         "button", "press", {"entity_id": eid(hass, "button", "start_session")}, blocking=True
@@ -232,7 +234,7 @@ async def test_energy_survives_restart(hass: HomeAssistant, setup_entry, backend
 
 
 async def test_real_world_null_timestamps(hass: HomeAssistant, setup_entry, backend) -> None:
-    """Live pushes carry start/stop as null (seen on a real U:MOVE)."""
+    """Live pushes carry start/stop as null (seen on a real charge point)."""
     events = async_capture_events(hass, f"{DOMAIN}_session_finished")
     s = dict(backend.status)
     await backend.push(
@@ -249,8 +251,6 @@ async def test_real_world_null_timestamps(hass: HomeAssistant, setup_entry, back
     assert float(state(hass, "sensor", "energy_total").state) == 6.0
     assert float(state(hass, "sensor", "session_reimbursement").state) == 1.8  # live: 6.0 kWh x 0.30
     assert state(hass, "sensor", "session_reimbursement").attributes["final"] is False
-    assert float(state(hass, "sensor", "tariff").state) == 0.3
-    assert state(hass, "sensor", "tariff").attributes["price_in_vat"] == 0.363
 
     # unplug: push without stop -> integration fetches status once, which has the stop
     sent = len(backend.sent)
@@ -330,12 +330,10 @@ async def test_removed_entities_are_cleaned_up(hass: HomeAssistant, fake_session
     entry = MockConfigEntry(domain=DOMAIN, data={"api_token": "good"}, unique_id="cust1")
     entry.add_to_hass(hass)
     reg = er.async_get(hass)
-    for key in ("session_stop", "session_cost", "session_tariff_value"):
-        reg.async_get_or_create("sensor", DOMAIN, f"{EVSE}_{key}", config_entry=entry)
+    reg.async_get_or_create("sensor", DOMAIN, f"{EVSE}_tariff", config_entry=entry)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    for key in ("session_stop", "session_cost", "session_tariff_value"):
-        assert reg.async_get_entity_id("sensor", DOMAIN, f"{EVSE}_{key}") is None
+    assert reg.async_get_entity_id("sensor", DOMAIN, f"{EVSE}_tariff") is None
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
 
@@ -360,7 +358,7 @@ async def test_set_tariff(hass: HomeAssistant, setup_entry, backend) -> None:
     assert st.attributes["price_in_vat"] == round(0.41 * 1.21, 4)
     # backend view refreshed over the websocket
     assert backend.sent[-1] == {"command": "GET_CH_SETTINGS", "evse_id": EVSE, "Authorization": "Token sess"}
-    assert state(hass, "sensor", "tariff").attributes["price_ex_vat"] == 0.41
+    assert state(hass, "sensor", "session_reimbursement").attributes["estimate"] == round(5.0 * 0.41, 2)
 
 
 async def test_set_tariff_out_of_range(hass: HomeAssistant, setup_entry, backend) -> None:
@@ -397,3 +395,16 @@ async def test_set_tariff_rejected_then_portal_token(hass: HomeAssistant, setup_
     )
     assert backend.rest[-1][2]["Authorization"] == "Token portal123"
     assert float(hass.states.get(entity_id).state) == 0.35
+
+
+async def test_device_name_and_language(hass: HomeAssistant, setup_entry) -> None:
+    from homeassistant.helpers import device_registry as dr
+
+    device = dr.async_get(hass).async_get_device(identifiers={(DOMAIN, EVSE)})
+    # charge point without its own name -> translated "Charge point <evse_id>"
+    assert device.name == f"Charge point {EVSE}"
+
+    hass.config.language = "nl"
+    setup_entry.runtime_data.async_set_updated_data(setup_entry.runtime_data.data)
+    await hass.async_block_till_done()
+    assert state(hass, "select", "charge_card").state == "Zonder laadpas"

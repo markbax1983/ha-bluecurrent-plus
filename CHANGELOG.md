@@ -5,6 +5,18 @@ Alle noemenswaardige wijzigingen per versie. Het versienummer staat in
 een nieuw versienummer maakt GitHub Actions automatisch de tag `vX.Y.Z` en een
 GitHub Release aan, met de tekst van die versie uit dit bestand.
 
+## [0.1.7] - 2026-11-16
+
+### Verwijderd
+- Sensor *Tarief*: dubbel met het number *Vergoedingstarief*. Wordt bij het opstarten uit het entiteitenregister gehaald. Het attribuut `start_price_ex_vat` staat nu op het number.
+- Opruimcode voor sensoren die in 0.1.4 verdwenen.
+
+### Gewijzigd
+- Apparaatnaam en de optie *Zonder laadpas* volgen de taal van Home Assistant (Nederlands of Engels) in plaats van altijd Nederlands.
+- Portal-token wordt weggelaten uit diagnostics.
+- Testdata bevat geen echte laadpaal- en pasgegevens meer.
+- README herschreven, met een sectie over beperkingen.
+
 ## [0.1.6] - 2026-11-16
 
 ### Toegevoegd
