@@ -5,6 +5,14 @@ Alle noemenswaardige wijzigingen per versie. Het versienummer staat in
 een nieuw versienummer maakt GitHub Actions automatisch de tag `vX.Y.Z` en een
 GitHub Release aan, met de tekst van die versie uit dit bestand.
 
+## [0.1.8] - 2026-11-16
+
+### Toegevoegd
+- Sensoren **Geladen deze maand** en **Vergoeding deze maand**, met het totaal en aantal sessies van de vorige maand als attributen. Een sessie telt mee in de maand waarin hij begon. Bewaard over herstarts heen.
+
+### Opgelost
+- Iconen van sensoren die in 0.1.4 verdwenen zijn uit `icons.json` gehaald.
+
 ## [0.1.7] - 2026-11-16
 
 ### Verwijderd

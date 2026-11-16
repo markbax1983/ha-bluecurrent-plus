@@ -107,6 +107,12 @@
       },
       "total_reimbursement": {
         "name": "Total reimbursement"
+      },
+      "month_energy": {
+        "name": "Energy this month"
+      },
+      "month_reimbursement": {
+        "name": "Reimbursement this month"
       }
     },
     "number": {

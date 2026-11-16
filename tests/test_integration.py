@@ -408,3 +408,66 @@ async def test_device_name_and_language(hass: HomeAssistant, setup_entry) -> Non
     setup_entry.runtime_data.async_set_updated_data(setup_entry.runtime_data.data)
     await hass.async_block_till_done()
     assert state(hass, "select", "charge_card").state == "Zonder laadpas"
+
+
+async def test_month_totals(hass: HomeAssistant, fake_session, backend, freezer) -> None:
+    """Sessions count in the month they started in; the month rolls over on its own."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    freezer.move_to("2026-09-24 13:00:00+00:00")  # 15:00 in Amsterdam, session runs since 14:00
+    entry = MockConfigEntry(domain=DOMAIN, data={"api_token": "good"}, unique_id="cust1")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    s = dict(backend.status)
+
+    energy, money = state(hass, "sensor", "month_energy"), state(hass, "sensor", "month_reimbursement")
+    assert float(energy.state) == 5.0  # running session, live
+    assert float(money.state) == 1.5  # live estimate 5 kWh x 0.30
+    assert energy.attributes["month"] == "2026-09"
+    assert energy.attributes["sessions"] == 1
+    assert energy.attributes["previous_month"] == "2026-08"
+    assert energy.attributes["last_reset"].startswith("2026-09-01T00:00:00+02:00")
+
+    # session ends at 7.5 kWh, Blue Current bills 1.5
+    done = {**s, "actual_kwh": 7.5, "activity": "available", "stop_datetime": "20260924 16:30:00"}
+    await backend.push({"object": "CH_STATUS", "data": done})
+    await hass.async_block_till_done()
+    assert float(state(hass, "sensor", "month_energy").state) == 7.5
+    assert float(state(hass, "sensor", "month_reimbursement").state) == 1.5
+    assert state(hass, "sensor", "month_energy").attributes["sessions"] == 1
+
+    # a new session starts on the last evening of September...
+    late = {**s, "actual_kwh": 2.0, "start_datetime": "20260930 23:00:00", "stop_datetime": ""}
+    await backend.push({"object": "CH_STATUS", "data": late})
+    await hass.async_block_till_done()
+    assert float(state(hass, "sensor", "month_energy").state) == 9.5
+
+    # ...the month rolls over while it is still charging
+    freezer.move_to("2026-09-30 23:00:05+00:00")  # 01:00:05 on 1 October in Amsterdam
+    async_fire_time_changed(hass, dt_util.utcnow())
+    await hass.async_block_till_done()
+    energy = state(hass, "sensor", "month_energy")
+    assert float(energy.state) == 0.0
+    assert energy.attributes["month"] == "2026-10"
+    assert energy.attributes["previous_month"] == "2026-09"
+    assert energy.attributes["previous_month_value"] == 7.5
+
+    # it finishes in October, but is booked in September (the month it started in)
+    end = {**late, "actual_kwh": 4.0, "total_cost": 1.2, "stop_datetime": "20261001 02:00:00"}
+    await backend.push({"object": "CH_STATUS", "data": end})
+    await hass.async_block_till_done()
+    energy, money = state(hass, "sensor", "month_energy"), state(hass, "sensor", "month_reimbursement")
+    assert float(energy.state) == 0.0
+    assert energy.attributes["previous_month_value"] == 11.5
+    assert energy.attributes["previous_month_sessions"] == 2
+    assert money.attributes["previous_month_value"] == 2.7
+
+    # totals survive a restart
+    await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    energy = state(hass, "sensor", "month_energy")
+    assert energy.attributes["month"] == "2026-10"
+    assert energy.attributes["previous_month_value"] == 11.5
+    await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()

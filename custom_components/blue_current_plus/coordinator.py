@@ -15,7 +15,7 @@ from homeassistant.const import CONF_API_TOKEN
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_time_change
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
@@ -104,6 +104,21 @@ def _find_list(message: dict[str, Any], *keys: str) -> list[dict[str, Any]]:
     return []
 
 
+def month_key(value: datetime) -> str:
+    """Calendar month ('YYYY-MM') in Blue Current's timezone."""
+    return value.astimezone(BC_TZ).strftime("%Y-%m")
+
+
+def previous_month_key(key: str) -> str:
+    year, month = (int(part) for part in key.split("-"))
+    year, month = (year - 1, 12) if month == 1 else (year, month - 1)
+    return f"{year:04d}-{month:02d}"
+
+
+def empty_month(key: str | None) -> dict[str, Any]:
+    return {"key": key, "energy_kwh": 0.0, "reimbursement_eur": 0.0, "sessions": 0}
+
+
 def _days(value: Any) -> list[str]:
     if isinstance(value, list):
         return [str(v) for v in value]
@@ -130,6 +145,9 @@ class ChargePoint:
     session_kwh: float = 0.0
     finished_key: str | None = None
     session_seen_open: bool = False
+    # monthly totals (persisted). A session counts in the month it started in.
+    month: dict[str, Any] = field(default_factory=lambda: empty_month(None))
+    prev_month: dict[str, Any] = field(default_factory=lambda: empty_month(None))
     # user selections (persisted)
     card_uid: str = NO_CARD_UID
     # optimistic override value while a request is in flight
@@ -247,6 +265,27 @@ class ChargePoint:
         return estimate, False
 
     @property
+    def session_open(self) -> bool:
+        """The current session is running (or not yet seen ending)."""
+        start = self.session_start
+        return start is not None and self.session_key == start.isoformat() and not self.session_finished
+
+    def live_in_month(self) -> bool:
+        start = self.session_start
+        return self.session_open and start is not None and month_key(start) == self.month["key"]
+
+    @property
+    def month_energy_kwh(self) -> float:
+        """kWh this month: finished sessions + the running one if it started this month."""
+        live = (self.session_energy_kwh or 0.0) if self.live_in_month() else 0.0
+        return round(self.month["energy_kwh"] + live, 3)
+
+    @property
+    def month_reimbursement_eur(self) -> float:
+        live = (self.session_reimbursement[0] or 0.0) if self.live_in_month() else 0.0
+        return round(self.month["reimbursement_eur"] + live, 2)
+
+    @property
     def energy_total_kwh(self) -> float:
         return round(self.energy_base_kwh + self.session_kwh, 3)
 
@@ -266,6 +305,8 @@ class ChargePoint:
             "session_kwh": self.session_kwh,
             "finished_key": self.finished_key,
             "session_seen_open": self.session_seen_open,
+            "month": self.month,
+            "prev_month": self.prev_month,
             "card_uid": self.card_uid,
         }
 
@@ -298,6 +339,7 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         self._stored: dict[str, Any] = {}
         self._override_timers: dict[str, CALLBACK_TYPE] = {}
         self._override_targets: dict[str, float] = {}
+        self._unsub_month: CALLBACK_TYPE | None = None
         self._stopping = False
 
     async def _async_update_data(self) -> HubData:
@@ -307,6 +349,34 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
     # ------------------------------------------------------------- storage
     async def async_load(self) -> None:
         self._stored = await self._store.async_load() or {}
+        # Month rollover also has to happen when no messages arrive.
+        self._unsub_month = async_track_time_change(self.hass, self._on_hour, minute=0, second=5)
+
+    @callback
+    def _on_hour(self, _now: Any) -> None:
+        if any([self._roll_month(cp) for cp in self.data.charge_points.values()]):
+            self.async_set_updated_data(self.data)
+
+    def _roll_month(self, cp: ChargePoint) -> bool:
+        """Start a new month bucket when the calendar month changed."""
+        key = month_key(dt_util.now())
+        if cp.month.get("key") == key:
+            return False
+        prev_key = previous_month_key(key)
+        cp.prev_month = cp.month if cp.month.get("key") == prev_key else empty_month(prev_key)
+        cp.month = empty_month(key)
+        self._schedule_save()
+        return True
+
+    def _book_month(self, cp: ChargePoint, start: datetime, kwh: float, eur: float) -> None:
+        """Add a finished session to the month it started in (this or last month)."""
+        key = month_key(start)
+        for bucket in (cp.month, cp.prev_month):
+            if bucket.get("key") == key:
+                bucket["energy_kwh"] = round(bucket["energy_kwh"] + kwh, 3)
+                bucket["reimbursement_eur"] = round(bucket["reimbursement_eur"] + eur, 2)
+                bucket["sessions"] += 1
+                return
 
     @callback
     def _schedule_save(self) -> None:
@@ -317,6 +387,8 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
 
     async def async_shutdown(self) -> None:
         self._stopping = True
+        if self._unsub_month:
+            self._unsub_month()
         for cancel in self._override_timers.values():
             cancel()
         await self._store.async_save({evse: cp.as_storage() for evse, cp in self.data.charge_points.items()})
@@ -467,6 +539,11 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
                 cp.session_kwh = float(stored.get("session_kwh", 0.0))
                 cp.finished_key = stored.get("finished_key")
                 cp.session_seen_open = bool(stored.get("session_seen_open", False))
+                if isinstance(stored.get("month"), dict):
+                    cp.month = {**empty_month(None), **stored["month"]}
+                if isinstance(stored.get("prev_month"), dict):
+                    cp.prev_month = {**empty_month(None), **stored["prev_month"]}
+                self._roll_month(cp)
                 preferred = info.get("preferred_card") or info.get("default_card") or {}
                 cp.card_uid = stored.get("card_uid") or preferred.get("uid") or NO_CARD_UID
                 self.data.charge_points[evse_id] = cp
@@ -523,6 +600,7 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         start = cp.session_start
         if kwh is None or start is None:
             return
+        self._roll_month(cp)
         key = start.isoformat()
         if cp.session_key is not None and key != cp.session_key:
             known = datetime.fromisoformat(cp.session_key)
@@ -547,6 +625,7 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
             if cp.session_seen_open:
                 amount, _final = cp.session_reimbursement
                 cp.reimbursement_base_eur = round(cp.reimbursement_base_eur + (amount or 0.0), 2)
+                self._book_month(cp, start, cp.session_kwh, amount or 0.0)
                 self._fire_finished(cp, start, stop)
         self._schedule_save()
 

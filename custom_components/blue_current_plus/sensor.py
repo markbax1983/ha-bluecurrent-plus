@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -24,7 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import ACTIVITY_OPTIONS, DOMAIN, VEHICLE_STATUS_OPTIONS
+from .const import ACTIVITY_OPTIONS, BC_TZ, DOMAIN, VEHICLE_STATUS_OPTIONS
 from .coordinator import BlueCurrentConfigEntry, BlueCurrentCoordinator, ChargePoint, to_float
 from .entity import BlueCurrentEntity
 
@@ -33,6 +34,7 @@ PARALLEL_UPDATES = 0
 # Sensors that no longer exist; removed from the entity registry on setup.
 # 0.1.7: "tariff" is replaced by the number entity "reimbursement_tariff".
 REMOVED_KEYS = ("tariff",)
+MONTH_KEYS = ("month_energy", "month_reimbursement")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -136,6 +138,22 @@ SENSORS: tuple[BCSensorDescription, ...] = (
         native_unit_of_measurement="EUR",
         suggested_display_precision=2,
         value_fn=lambda cp, _c: cp.reimbursement_base_eur,
+    ),
+    BCSensorDescription(
+        key="month_energy",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        value_fn=lambda cp, _c: cp.month_energy_kwh if cp.month.get("key") else None,
+    ),
+    BCSensorDescription(
+        key="month_reimbursement",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement="EUR",
+        suggested_display_precision=2,
+        value_fn=lambda cp, _c: cp.month_reimbursement_eur if cp.month.get("key") else None,
     ),
     BCSensorDescription(
         key="session_start",
@@ -268,7 +286,26 @@ class BlueCurrentSensor(BlueCurrentEntity, SensorEntity):
         return super().available
 
     @property
+    def last_reset(self) -> datetime | None:
+        if self.entity_description.key not in MONTH_KEYS or not (key := self.cp.month.get("key")):
+            return None
+        year, month = (int(part) for part in key.split("-"))
+        return datetime(year, month, 1, tzinfo=BC_TZ)
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.entity_description.key in MONTH_KEYS:
+            field_name = (
+                "energy_kwh" if self.entity_description.key == "month_energy" else "reimbursement_eur"
+            )
+            cur, prev = self.cp.month, self.cp.prev_month
+            return {
+                "month": cur.get("key"),
+                "sessions": cur.get("sessions", 0) + (1 if self.cp.live_in_month() else 0),
+                "previous_month": prev.get("key"),
+                "previous_month_value": prev.get(field_name),
+                "previous_month_sessions": prev.get("sessions"),
+            }
         if self.entity_description.key != "session_reimbursement":
             return None
         _amount, final = self.cp.session_reimbursement

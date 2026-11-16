@@ -14,6 +14,7 @@ Onofficiële Home Assistant-integratie voor laadpalen van [Blue Current](https:/
 - **Laadpas kiezen** voor de knop *Start laden*, met naam en EMP-id; je hoeft de RFID-UID niet zelf op te zoeken.
 - **Vergoedingstarief** uitlezen en aanpassen (€/kWh excl. btw), ook vanuit een automation.
 - **Sessievergoeding**: live schatting tijdens het laden, het bedrag van Blue Current zodra de sessie klaar is. Plus een teller voor de totale vergoeding.
+- **Maandtotalen** voor kWh en vergoeding, met het totaal van de vorige maand erbij: direct te vergelijken met de maandelijkse creditfactuur.
 - **Robuuste verbinding**: automatisch opnieuw verbinden, request-teller en een melding onder *Reparaties* als de limiet bereikt is of een andere client verbonden is.
 
 ## Installatie
@@ -34,7 +35,7 @@ Per laadpaal wordt één apparaat aangemaakt.
 | Soort | Entiteiten |
 |---|---|
 | Vermogen en stroom | Laadvermogen (totaal en per fase), Laadstroom per fase, Netspanning per fase, Actieve fases, Maximale laadstroom, Resterende stroom (op de zwaarst belaste fase) |
-| Energie en geld | Totaal geladen (kWh, voor het Energie-dashboard), Sessie energie, Sessie vergoeding, Totale vergoeding |
+| Energie en geld | Totaal geladen (kWh, voor het Energie-dashboard), Sessie energie, Sessie vergoeding, Totale vergoeding, Geladen deze maand, Vergoeding deze maand |
 | Sessie en status | Sessie start, Sessie duur, Laadpaal status, Voertuigstatus, Laden, Auto aangesloten, Stroomlimiet actief |
 | Bediening | Max laadstroom, Laadpas, Start laden, Stop laden, Laadpaal blokkeren |
 | Configuratie | Vergoedingstarief, Plug & charge, Alleen gekoppelde laadpassen, Reset, Herstart |
@@ -54,6 +55,25 @@ Het number **Vergoedingstarief** toont het kWh-tarief excl. btw zoals het op my.
 - De integratie gebruikt het token dat ze al heeft. Weigert Blue Current dat, dan krijg je een foutmelding. Vul dan bij **Configureren** een *portal-token* in: op my.bluecurrent.nl → DevTools → Netwerk → een verzoek naar `api.bluecurrent.nl` → de waarde na `Authorization: Token `.
 - Het tarief bepaalt je creditfactuur. Controleer na een wijziging in de portal of het goed staat.
 
+## Maandtotalen
+
+**Geladen deze maand** (kWh) en **Vergoeding deze maand** (€ excl. btw) tellen alle sessies van de huidige kalendermaand op. Een lopende sessie telt live mee. De attributen geven het totaal van de vorige maand:
+
+| Attribuut | Betekenis |
+|---|---|
+| `month` | De huidige maand, bijvoorbeeld `2026-12` |
+| `sessions` | Aantal sessies deze maand |
+| `previous_month`, `previous_month_value`, `previous_month_sessions` | Maand, totaal en aantal sessies van de vorige maand |
+
+Leg `previous_month_value` naast de creditfactuur van die maand.
+
+- Een sessie telt mee in de maand waarin hij **begon**, ook als hij in de volgende maand eindigt. Zo'n sessie wordt na afloop nog bij de vorige maand opgeteld.
+- De vergoeding is het bedrag dat Blue Current na afloop van een sessie doorgeeft; tijdens het laden is het een schatting (kWh × tarief).
+- De tellers beginnen bij de installatie of update. De eerste maand is daardoor meestal onvolledig.
+- Sessies die afliepen terwijl Home Assistant uit stond, worden niet meegeteld. Dat geldt ook voor *Totale vergoeding*.
+
+Wil je een staafgrafiek per maand over een langere periode? Gebruik een *Statistiekgrafiek*-kaart op *Totaal geladen* of *Totale vergoeding*, met periode *Maand* en type *Verandering*.
+
 ## Events
 
 | Event | Wanneer | Data |
@@ -62,8 +82,6 @@ Het number **Vergoedingstarief** toont het kWh-tarief excl. btw zoals het op my.
 | `blue_current_plus_command_result` | Antwoord op start, stop, reset of herstart | `evse_id`, `command`, `success`, `error` |
 
 Handig voor bijvoorbeeld factuurcontrole of het bijhouden van ERE-registraties.
-
-**Tip:** maak een *Meterhulp* (utility meter) op *Totale vergoeding* of *Totaal geladen* met een maandelijkse cyclus. Die bedragen kun je direct naast de creditfactuur leggen.
 
 ## Beperkingen
 

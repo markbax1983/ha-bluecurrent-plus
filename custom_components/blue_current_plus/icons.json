@@ -2,9 +2,10 @@
   "entity": {
     "sensor": {
       "active_phases": { "default": "mdi:sine-wave" },
-      "session_cost": { "default": "mdi:currency-eur" },
+      "session_reimbursement": { "default": "mdi:currency-eur" },
+      "month_energy": { "default": "mdi:calendar-month" },
+      "month_reimbursement": { "default": "mdi:cash-multiple" },
       "session_start": { "default": "mdi:clock-start" },
-      "session_stop": { "default": "mdi:clock-end" },
       "activity": { "default": "mdi:ev-station" },
       "vehicle_status": { "default": "mdi:car-electric" },
       "requests_today": { "default": "mdi:counter" },

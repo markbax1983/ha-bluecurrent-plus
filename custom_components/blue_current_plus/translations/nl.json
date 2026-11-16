@@ -107,6 +107,12 @@
       },
       "total_reimbursement": {
         "name": "Totale vergoeding"
+      },
+      "month_energy": {
+        "name": "Geladen deze maand"
+      },
+      "month_reimbursement": {
+        "name": "Vergoeding deze maand"
       }
     },
     "number": {
