@@ -93,21 +93,9 @@ Handig voor bijvoorbeeld factuurcontrole of het bijhouden van ERE-registraties.
 
 Werkt iets niet bij jouw laadpaal? Open een [issue](https://github.com/markbax1983/ha-bluecurrent-plus/issues) en voeg de *diagnostics* van de integratie toe (tokens en pasnummers zijn daarin weggelaten).
 
-## Ontwikkeling
+## Meewerken
 
-```bash
-pip install -r requirements_test.txt
-pytest -q        # tests tegen een gesimuleerde Blue Current-backend
-ruff check .
-```
-
-### Nieuwe versie uitbrengen
-
-1. Hoog `version` op in `custom_components/blue_current_plus/manifest.json`.
-2. Zet bovenaan [CHANGELOG.md](CHANGELOG.md) een sectie `## [X.Y.Z] - datum`.
-3. Push naar `main`. De workflow *Release* draait de tests en maakt daarna tag `vX.Y.Z` en een GitHub Release met de tekst uit de changelog.
-
-Het icoon staat in `custom_components/blue_current_plus/brand/`; de bron is `assets/icon.svg`. Het is een eigen ontwerp, niet het logo van Blue Current.
+Testen, code-controle en het uitbrengen van een nieuwe versie staan in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licentie
 
