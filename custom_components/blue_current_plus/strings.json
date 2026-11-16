@@ -205,9 +205,10 @@
     "step": {
       "init": {
         "title": "Blue Current Plus",
-        "description": "Optional: portal token used to change the reimbursement tariff. Only needed if Blue Current rejects the regular token. Find it on my.bluecurrent.nl → DevTools → Network → any api.bluecurrent.nl request → value after \"Authorization: Token \". Leave empty to use the regular token.",
+        "description": "Optional: portal token used to change the reimbursement tariff. Only needed if Blue Current rejects the regular token. Find it on my.bluecurrent.nl → DevTools → Network → any api.bluecurrent.nl request → value after \"Authorization: Token \". Portal token stored: {status}. Leave empty to keep the stored token. Note: this token gives full access to your Blue Current account.",
         "data": {
-          "portal_token": "Portal token"
+          "portal_token": "Portal token",
+          "clear_portal_token": "Remove stored portal token"
         }
       }
     }

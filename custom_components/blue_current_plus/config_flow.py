@@ -15,6 +15,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_API_TOKEN
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 import voluptuous as vol
 
 from .api import (
@@ -25,9 +26,11 @@ from .api import (
     InvalidToken,
     RequestLimitReached,
 )
-from .const import CONF_PORTAL_TOKEN, DOMAIN, LOGGER
+from .const import CONF_CLEAR_PORTAL_TOKEN, CONF_PORTAL_TOKEN, DOMAIN, LOGGER
 
-SCHEMA = vol.Schema({vol.Required(CONF_API_TOKEN): str})
+SCHEMA = vol.Schema(
+    {vol.Required(CONF_API_TOKEN): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))}
+)
 
 
 class BlueCurrentPlusConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -81,14 +84,33 @@ class BlueCurrentPlusConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class BlueCurrentPlusOptionsFlow(OptionsFlow):
-    """Optional portal token for the my.bluecurrent.nl REST API (tariff)."""
+    """Optional portal token for the my.bluecurrent.nl REST API (tariff).
+
+    The stored token is never shown again: an empty field keeps it, the
+    checkbox removes it. The portal token is a full web session token, so it
+    should not be visible to everyone who opens this form.
+    """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        current = self.config_entry.options.get(CONF_PORTAL_TOKEN, "")
         if user_input is not None:
+            if user_input.get(CONF_CLEAR_PORTAL_TOKEN):
+                return self.async_create_entry(data={})
             token = (user_input.get(CONF_PORTAL_TOKEN) or "").strip()
             if token.lower().startswith("token "):
                 token = token[6:].strip()
+            token = token or current
             return self.async_create_entry(data={CONF_PORTAL_TOKEN: token} if token else {})
-        current = self.config_entry.options.get(CONF_PORTAL_TOKEN, "")
-        schema = vol.Schema({vol.Optional(CONF_PORTAL_TOKEN, description={"suggested_value": current}): str})
-        return self.async_show_form(step_id="init", data_schema=schema)
+        schema = vol.Schema(
+            {
+                vol.Optional(CONF_PORTAL_TOKEN): TextSelector(
+                    TextSelectorConfig(type=TextSelectorType.PASSWORD)
+                ),
+                vol.Optional(CONF_CLEAR_PORTAL_TOKEN, default=False): bool,
+            }
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            description_placeholders={"status": "\u2713" if current else "\u2013"},
+        )

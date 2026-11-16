@@ -471,3 +471,81 @@ async def test_month_totals(hass: HomeAssistant, fake_session, backend, freezer)
     assert energy.attributes["previous_month_value"] == 11.5
     await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
+
+
+# ------------------------------------------------------------- security / privacy
+CARD_UID = "04AABBCCDDEE01"
+CARD_EMP = "NL-XXX-C0000000-0"
+
+
+async def test_card_uid_not_exposed(hass: HomeAssistant, setup_entry) -> None:
+    """The RFID UID must never reach the state machine (recorder, backups)."""
+    select = state(hass, "select", "charge_card")
+    blob = repr(select.attributes) + select.state
+    assert CARD_UID not in blob
+    assert CARD_EMP not in blob
+    assert "uid" not in select.attributes
+    assert any(o.startswith("Testpas (") and o.endswith("00-0)") for o in select.attributes["options"])
+    for st in hass.states.async_all():
+        assert CARD_UID not in repr(st.attributes) + st.state
+
+
+async def test_duplicate_card_labels_stay_unique(hass: HomeAssistant, setup_entry, backend) -> None:
+    await backend.push(
+        {
+            "object": "CHARGE_CARDS",
+            "data": [
+                {"uid": "04AAAAAAAAAA01", "id": "NL-XXX-C1111111-1", "name": "Pas"},
+                {"uid": "04AAAAAAAAAA02", "id": "NL-XXX-C2221111-1", "name": "Pas"},
+            ],
+        }
+    )
+    await hass.async_block_till_done()
+    options = state(hass, "select", "charge_card").attributes["options"]
+    assert len(options) == len(set(options)) == 3
+
+
+async def test_diagnostics_without_personal_data(hass: HomeAssistant, setup_entry, backend) -> None:
+    await backend.push(
+        {"object": "SECRET_THING", "data": {"evse_id": EVSE, "email": "x@example.nl", "note": "private"}}
+    )
+    await hass.async_block_till_done()
+    diag = await async_get_config_entry_diagnostics(hass, setup_entry)
+    blob = repr(diag)
+    for secret in (CARD_UID, CARD_EMP, "Testpas", EVSE, "x@example.nl", "private", "cust1"):
+        assert secret not in blob, secret
+    for token in ("good", "sess"):  # api token / session token as whole values
+        assert repr(token) not in blob, token
+    assert "charge_point_1" in diag["charge_points"]
+    unhandled = next(m for m in diag["unhandled_messages"] if m["object"] == "SECRET_THING")
+    assert unhandled["shape"] == {"data": {"evse_id": "str", "email": "**REDACTED**", "note": "str"}}
+
+
+async def test_options_portal_token_hidden_kept_and_cleared(hass: HomeAssistant, setup_entry) -> None:
+    flow = hass.config_entries.options
+    result = await flow.async_init(setup_entry.entry_id)
+    result = await flow.async_configure(result["flow_id"], {"portal_token": "portal123"})
+    assert setup_entry.options == {"portal_token": "portal123"}
+
+    # the stored token is not shown in the form
+    result = await flow.async_init(setup_entry.entry_id)
+    assert "portal123" not in repr(result["data_schema"].schema)
+    # empty field keeps it
+    result = await flow.async_configure(result["flow_id"], {})
+    assert setup_entry.options == {"portal_token": "portal123"}
+    # checkbox removes it
+    result = await flow.async_init(setup_entry.entry_id)
+    result = await flow.async_configure(result["flow_id"], {"clear_portal_token": True})
+    assert setup_entry.options == {}
+
+
+async def test_command_error_keeps_connection(
+    hass: HomeAssistant, setup_entry, fake_session, backend
+) -> None:
+    connects = fake_session.connects
+    await backend.push({"object": "ERROR", "error": 9, "message": "Charge point busy"})
+    await backend.push({"object": "CH_STATUS", "data": {**backend.status, "actual_p1": 10.0}})
+    await hass.async_block_till_done()
+    assert fake_session.connects == connects
+    assert state(hass, "binary_sensor", "cloud_connection").state == "on"
+    assert float(state(hass, "sensor", "power_phase_1").state) == 2300.0

@@ -14,6 +14,7 @@ PORTAL_URL = "https://api.bluecurrent.nl/app/bc_api/api/v2.0"
 
 # Options
 CONF_PORTAL_TOKEN = "portal_token"
+CONF_CLEAR_PORTAL_TOKEN = "clear_portal_token"
 
 # Reimbursement tariff limits (EUR/kWh ex VAT) - guard against typos like 4.0.
 TARIFF_MIN = 0.05

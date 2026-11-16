@@ -158,7 +158,11 @@ class BlueCurrentApi:
                         if not isinstance(data, dict):
                             continue
                         if data.get("object") == "ERROR":
-                            raise error_from_message(data)
+                            err = error_from_message(data)
+                            # Only auth and request-limit errors end the link;
+                            # anything else is the answer to one command.
+                            if isinstance(err, (InvalidToken, RequestLimitReached)):
+                                raise err
                         await on_message(data)
                     elif msg.type == aiohttp.WSMsgType.ERROR:
                         raise CannotConnect(str(ws.exception()))

@@ -205,9 +205,10 @@
     "step": {
       "init": {
         "title": "Blue Current Plus",
-        "description": "Optioneel: portal-token voor het aanpassen van het vergoedingstarief. Alleen nodig als Blue Current het gewone token weigert. Vinden: my.bluecurrent.nl → DevTools → Netwerk → een api.bluecurrent.nl-verzoek → waarde na \"Authorization: Token \". Leeg laten = gewone token gebruiken.",
+        "description": "Optioneel: portal-token voor het aanpassen van het vergoedingstarief. Alleen nodig als Blue Current het gewone token weigert. Vinden: my.bluecurrent.nl → DevTools → Netwerk → een api.bluecurrent.nl-verzoek → waarde na \"Authorization: Token \". Portal-token opgeslagen: {status}. Leeg laten = opgeslagen token behouden. Let op: dit token geeft volledige toegang tot je Blue Current-account.",
         "data": {
-          "portal_token": "Portal-token"
+          "portal_token": "Portal-token",
+          "clear_portal_token": "Opgeslagen portal-token verwijderen"
         }
       }
     }

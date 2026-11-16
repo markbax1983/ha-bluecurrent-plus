@@ -5,6 +5,20 @@ Alle noemenswaardige wijzigingen per versie. Het versienummer staat in
 een nieuw versienummer maakt GitHub Actions automatisch de tag `vX.Y.Z` en een
 GitHub Release aan, met de tekst van die versie uit dit bestand.
 
+## [0.1.9] - 2026-11-16
+
+### Beveiliging
+- De RFID-UID van laadpassen staat niet meer in de opties en attributen van de select *Laadpas* (en dus niet meer in de recorder, history en backups). Opties tonen de pasnaam en de laatste tekens van het EMP-nummer.
+- Diagnostics laten ook EMP-nummer, pasnaam, adres- en locatievelden weg, vervangen laadpaalnummers door `charge_point_1` enz. en tonen van onbekende berichten alleen de structuur.
+- Het portal-token wordt in het optiescherm niet meer voorgevuld en als wachtwoordveld getoond. Leeg laten behoudt het opgeslagen token; een vinkje verwijdert het. Ook het API-token is een wachtwoordveld.
+- Debuglogs bevatten van onbekende berichten alleen de veldnamen.
+- GitHub Actions: standaard alleen leesrechten, schrijfrechten alleen voor de release-job; Actions vastgepind op commit en bijgehouden door Dependabot.
+
+### Opgelost
+- Na een geweigerd token en een geslaagde hervalidatie wordt met de normale backoff opnieuw verbonden in plaats van na 1 seconde. Dat voorkomt dat de daglimiet opraakt.
+- Een foutmelding van Blue Current op één commando verbreekt niet meer de hele verbinding; alleen token- en limietfouten doen dat.
+- Onverwachte override-gegevens en een ongeldige opgeslagen sessie laten de integratie niet meer vastlopen.
+
 ## [0.1.8] - 2026-11-16
 
 ### Toegevoegd

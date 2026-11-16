@@ -11,7 +11,7 @@ Onofficiële Home Assistant-integratie voor laadpalen van [Blue Current](https:/
 - **Juist laadvermogen**: per fase U × I, opgeteld. De standaard integratie rekent met gemiddelden en komt bij 3 × 16 A op zo'n 6,4 kW in plaats van ~11 kW.
 - **Energie-dashboard**: een oplopende kWh-teller over alle sessies heen, bewaard over herstarts.
 - **Max laadstroom als schuifregelaar**: wijzigingen worden gebundeld, zodat een automation of slider niet de dagelijkse request-limiet opmaakt.
-- **Laadpas kiezen** voor de knop *Start laden*, met naam en EMP-id; je hoeft de RFID-UID niet zelf op te zoeken.
+- **Laadpas kiezen** voor de knop *Start laden*, op naam en de laatste tekens van het EMP-nummer; je hoeft de RFID-UID niet zelf op te zoeken.
 - **Vergoedingstarief** uitlezen en aanpassen (€/kWh excl. btw), ook vanuit een automation.
 - **Sessievergoeding**: live schatting tijdens het laden, het bedrag van Blue Current zodra de sessie klaar is. Plus een teller voor de totale vergoeding.
 - **Maandtotalen** voor kWh en vergoeding, met het totaal van de vorige maand erbij: direct te vergelijken met de maandelijkse creditfactuur.
@@ -83,6 +83,13 @@ Wil je een staafgrafiek per maand over een langere periode? Gebruik een *Statist
 
 Handig voor bijvoorbeeld factuurcontrole of het bijhouden van ERE-registraties.
 
+## Beveiliging en privacy
+
+- **Laadpas-UID**: de RFID-UID van je laadpas blijft binnen de integratie. Hij staat niet in entiteiten, attributen, logs of diagnostics, want met een UID kan een pas gekopieerd worden.
+- **Portal-token**: dit is je websessie van my.bluecurrent.nl en geeft volledige toegang tot je account, meer dan het API-token. Het wordt na opslaan niet meer getoond. Gebruik het alleen als het tarief anders niet aan te passen is, en verwijder het via **Configureren** als je het niet meer nodig hebt. Tokens staan, zoals bij elke integratie, in de configuratie en dus ook in backups van Home Assistant.
+- **Gevoelige knoppen**: *Plug & charge* (iedereen die inplugt, laadt op jouw kosten), *Alleen gekoppelde laadpassen*, *Laadpaal blokkeren* en *Herstart* zijn te bedienen door iedereen met toegang tot Home Assistant. Stel ze niet open aan spraakassistenten en schakel ze uit in het entiteitenregister als je ze niet gebruikt.
+- **Diagnostics** zijn geschikt om in een openbaar issue te plakken: tokens, pasgegevens, e-mail en klantnummer zijn weggelaten, laadpaalnummers vervangen door `charge_point_1` enzovoort, en onbekende berichten bevatten alleen hun structuur.
+
 ## Beperkingen
 
 - **Getest met één laadpaal** (een U:MOVE in Nederland) op één account. Meerdere laadpalen per account worden ondersteund, maar zijn niet in de praktijk getest. Dat geldt vooral voor overrides die met andere laadpalen gedeeld worden; de netstroomsensoren hangen aan de eerste laadpaal.
@@ -91,7 +98,7 @@ Handig voor bijvoorbeeld factuurcontrole of het bijhouden van ERE-registraties.
 - **Btw**: het bedrag incl. btw komt van Blue Current. Alleen direct na het aanpassen van het tarief rekent de integratie het zelf even uit, tot Blue Current het nieuwe bedrag stuurt.
 - **Vergoedingen** zijn in euro's, zoals Blue Current ze aanlevert.
 
-Werkt iets niet bij jouw laadpaal? Open een [issue](https://github.com/markbax1983/ha-bluecurrent-plus/issues) en voeg de *diagnostics* van de integratie toe (tokens en pasnummers zijn daarin weggelaten).
+Werkt iets niet bij jouw laadpaal? Open een [issue](https://github.com/markbax1983/ha-bluecurrent-plus/issues) en voeg de *diagnostics* van de integratie toe (zie *Beveiliging en privacy* voor wat daarin wordt weggelaten).
 
 ## Meewerken
 

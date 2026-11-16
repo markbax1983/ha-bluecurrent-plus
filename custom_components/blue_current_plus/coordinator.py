@@ -424,8 +424,9 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
                 delay = BACKOFF_MAX
             except InvalidToken:
                 try:
+                    # Fresh session token; reconnect with the normal backoff so a
+                    # backend that keeps rejecting us can't burn the daily limit.
                     await self.api.validate_token(self.config_entry.data[CONF_API_TOKEN])
-                    delay = 1
                 except InvalidToken:
                     LOGGER.error("Blue Current API token rejected, starting re-auth")
                     self._set_connected(False)
@@ -518,7 +519,13 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
             handled = False
 
         if not handled or message.get("error"):
-            LOGGER.debug("Unhandled/erroneous message %s: %s", obj, message)
+            # Keys only: debug logs get pasted into public issues.
+            LOGGER.debug(
+                "Unhandled/erroneous message %s (keys: %s, error: %s)",
+                obj,
+                sorted(message),
+                message.get("error"),
+            )
             self.raw_messages.append(message)
 
         self.async_set_updated_data(self.data)
@@ -603,7 +610,12 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         self._roll_month(cp)
         key = start.isoformat()
         if cp.session_key is not None and key != cp.session_key:
-            known = datetime.fromisoformat(cp.session_key)
+            try:
+                known = datetime.fromisoformat(cp.session_key)
+            except (TypeError, ValueError):
+                LOGGER.warning("Ignoring invalid stored session key for %s", cp.evse_id)
+                cp.session_key = None
+                known = start
             if start < known:
                 # An older session than the one we already counted: ignore.
                 return
@@ -692,7 +704,7 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         success = message.get("success")
         error = message.get("error")
         if error or success is False:
-            LOGGER.warning("Blue Current command %s failed: %s", obj, error or message)
+            LOGGER.warning("Blue Current command %s failed: %s", obj, error or "no details")
         self.hass.bus.async_fire(
             EVENT_COMMAND_RESULT,
             {
@@ -812,6 +824,9 @@ class BlueCurrentCoordinator(DataUpdateCoordinator[HubData]):
         except BlueCurrentError as err:
             cp.pending_override = None
             LOGGER.error("Setting max current on %s failed: %s", evse_id, err)
+        except (KeyError, TypeError, ValueError):
+            cp.pending_override = None
+            LOGGER.exception("Unexpected override data for %s", evse_id)
         self.async_set_updated_data(self.data)
 
     # ------------------------------------------------------------ commands
